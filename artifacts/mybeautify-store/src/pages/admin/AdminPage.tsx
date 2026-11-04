@@ -222,9 +222,13 @@ function CrudPanel<T extends { id: number }>({
       if (imageFile && imageFile.size > MAX_IMAGE_SIZE_BYTES) {
         throw new Error('Image files must be 5 MB or smaller.');
       }
-      const hiddenProductFields = ['ingredients', 'benefits', 'howToUse', 'skinType', 'shade', 'expiryDate'];
+      const hiddenProductFields = ['ingredients', 'benefits', 'howToUse', 'skinType', 'shade', 'size', 'expiryDate'];
       for (const [key, value] of Object.entries(editing ?? {})) {
-        if (hiddenProductFields.includes(key)) payload[key] = value;
+        if (hiddenProductFields.includes(key)) {
+          payload[key] = (key === 'ingredients' || key === 'benefits') && Array.isArray(value)
+            ? value.join(', ')
+            : value;
+        }
       }
       mutation.mutate({ method: editing ? 'PUT' : 'POST', id: editing?.id, payload, imageFile: imageFile ?? undefined });
     } catch (submitError) {
@@ -347,7 +351,6 @@ function AdminConsole() {
     { key: 'shortDescription', label: 'Short description', type: 'textarea' },
     { key: 'description', label: 'Description', type: 'textarea', required: true },
     { key: 'imageFile', label: 'Upload image', type: 'file', accept: 'image/jpeg,image/png,image/webp', hint: 'JPEG, PNG, or WebP. Maximum file size: 5 MB. A selected file replaces the current image.' },
-    { key: 'size', label: 'Size / dimensions', type: 'text' },
     { key: 'featured', label: 'Featured', type: 'checkbox' },
     { key: 'active', label: 'Active', type: 'checkbox', defaultValue: true },
   ], [categoriesQuery.data?.items]);
