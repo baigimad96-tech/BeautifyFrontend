@@ -18,6 +18,8 @@ import {
   Sparkles,
   Plus,
   Minus,
+  Share2,
+  Copy,
   CheckCircle2,
   AlertCircle,
   Loader2,
@@ -28,6 +30,7 @@ import {
   Banknote,
   Edit3,
 } from 'lucide-react';
+import { FaFacebookF, FaInstagram, FaTwitter, FaWhatsapp } from 'react-icons/fa';
 import {
   fetchProductById,
   fetchProducts,
@@ -95,6 +98,7 @@ export function ProductDetailPage() {
 
   // Gallery state
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [shareMenuOpen, setShareMenuOpen] = useState(false);
 
   // Purchase state
   const [quantity, setQuantity] = useState(1);
@@ -227,6 +231,77 @@ export function ProductDetailPage() {
     if (!product) return [];
     return [getJewelleryImage(product.imageUrl, product.name, product.id)];
   }, [product]);
+
+  const productShareText = product
+    ? `${product.name} — ${formatCurrency(product.sellingPrice || product.price)}`
+    : '';
+  const productShareUrl = typeof window === 'undefined' ? '' : window.location.href;
+
+  const handleNativeProductShare = async (fallbackShareUrl?: string) => {
+    if (!product || !productShareUrl) return;
+    if (!navigator.share) {
+      if (fallbackShareUrl) {
+        openProductShare(fallbackShareUrl);
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(productShareUrl);
+        showToast('Product link copied. Open it on your phone to share the photo with Instagram or other apps.');
+      } catch {
+        showToast('Sharing is unavailable in this browser. Copy the product link from the address bar.');
+      }
+      return;
+    }
+
+    let files: File[] = [];
+    try {
+      const imageResponse = await fetch(galleryImages[activeImageIndex] || galleryImages[0]);
+      if (!imageResponse.ok) throw new Error('The product photo could not be loaded.');
+      const image = await imageResponse.blob();
+      const extension = image.type.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg';
+      const fileName = `${product.name.replace(/[^a-z0-9-_]+/gi, '-').replace(/^-|-$/g, '') || 'product'}.${extension}`;
+      files = [new File([image], fileName, { type: image.type || 'image/jpeg' })];
+    } catch {
+      showToast('Could not attach the product photo; sharing the product link instead.');
+    }
+
+    const shareData: ShareData = {
+      title: product.name,
+      text: productShareText,
+      url: productShareUrl,
+    };
+    const canShareImage = files.length > 0 && Boolean(navigator.canShare?.({ files }));
+    if (canShareImage) {
+      shareData.files = files;
+    } else if (fallbackShareUrl) {
+      openProductShare(fallbackShareUrl);
+      return;
+    }
+
+    try {
+      await navigator.share(shareData);
+      setShareMenuOpen(false);
+    } catch (shareError) {
+      if (!(shareError instanceof Error && shareError.name === 'AbortError')) {
+        showToast('The product could not be shared. Please try again.');
+      }
+    }
+  };
+
+  const handleCopyProductLink = async () => {
+    try {
+      await navigator.clipboard.writeText(productShareUrl);
+      setShareMenuOpen(false);
+      showToast('Product link copied.');
+    } catch {
+      showToast('Could not copy the product link. Please copy it from the address bar.');
+    }
+  };
+
+  const openProductShare = (shareUrl: string) => {
+    window.open(shareUrl, '_blank', 'noopener,noreferrer');
+    setShareMenuOpen(false);
+  };
 
   // Handle next / previous image in gallery
   const handlePrevImage = () => {
@@ -845,16 +920,53 @@ export function ProductDetailPage() {
               <div className="mb-gallery-main-card">
                 {badge && <span className="mb-gallery-badge">{badge.text}</span>}
 
-                <button
-                  type="button"
-                  className={`mb-gallery-wish-btn ${isWishlisted ? 'active' : ''}`}
-                  onClick={handleToggleWishlist}
-                  disabled={wishlistLoading}
-                  aria-label={isWishlisted ? 'Remove from Wishlist' : 'Add to Wishlist'}
-                  data-testid="detail-wishlist-toggle"
-                >
-                  <Heart size={18} fill={isWishlisted ? 'currentColor' : 'none'} />
-                </button>
+                <div className="mb-gallery-action-buttons">
+                  <button
+                    type="button"
+                    className={`mb-gallery-wish-btn ${isWishlisted ? 'active' : ''}`}
+                    onClick={handleToggleWishlist}
+                    disabled={wishlistLoading}
+                    aria-label={isWishlisted ? 'Remove from Wishlist' : 'Add to Wishlist'}
+                    data-testid="detail-wishlist-toggle"
+                  >
+                    <Heart size={18} fill={isWishlisted ? 'currentColor' : 'none'} />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="mb-gallery-share-btn"
+                    onClick={() => setShareMenuOpen((open) => !open)}
+                    aria-label="Share product"
+                    aria-expanded={shareMenuOpen}
+                    aria-controls="product-share-menu"
+                    data-testid="product-share-toggle"
+                  >
+                    <Share2 size={18} />
+                  </button>
+                </div>
+
+                {shareMenuOpen && (
+                  <div className="mb-product-share-menu" id="product-share-menu" role="menu" aria-label="Share product">
+                    <button type="button" role="menuitem" onClick={() => { void handleNativeProductShare(`https://wa.me/?text=${encodeURIComponent(`${productShareText}\n${productShareUrl}`)}`); }}>
+                      <FaWhatsapp className="whatsapp" size={18} /> WhatsApp
+                    </button>
+                    <button type="button" role="menuitem" onClick={() => { void handleNativeProductShare(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(productShareUrl)}&quote=${encodeURIComponent(productShareText)}`); }}>
+                      <FaFacebookF className="facebook" size={17} /> Facebook
+                    </button>
+                    <button type="button" role="menuitem" onClick={() => { void handleNativeProductShare(); }}>
+                      <FaInstagram className="instagram" size={18} /> Instagram
+                    </button>
+                    <button type="button" role="menuitem" onClick={() => openProductShare(`https://twitter.com/intent/tweet?text=${encodeURIComponent(productShareText)}&url=${encodeURIComponent(productShareUrl)}`)}>
+                      <FaTwitter className="twitter" size={17} /> X / Twitter
+                    </button>
+                    <button type="button" role="menuitem" onClick={() => { void handleNativeProductShare(); }}>
+                      <Share2 size={17} /> More apps
+                    </button>
+                    <button type="button" role="menuitem" onClick={() => { void handleCopyProductLink(); }}>
+                      <Copy size={17} /> Copy link
+                    </button>
+                  </div>
+                )}
 
                 {galleryImages.length > 1 && (
                   <>
