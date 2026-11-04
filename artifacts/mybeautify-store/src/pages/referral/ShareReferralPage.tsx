@@ -6,7 +6,7 @@ import {
   Check,
   Gift,
   Users,
-  ShoppingBag,
+  ShoppingCart,
   Sparkles,
   ArrowRight,
   Home,
@@ -253,7 +253,7 @@ export function ShareReferralPage() {
               title="Cart"
               aria-label="View Cart"
             >
-              <ShoppingBag size={20} />
+              <ShoppingCart size={20} />
               {cartCount > 0 && (
                 <span className="mb-badge mz-badge-gold">{cartCount}</span>
               )}
@@ -588,7 +588,7 @@ export function ShareReferralPage() {
 
               <div className="mz-stat-card">
                 <div className="mz-stat-icon-wrap">
-                  <ShoppingBag size={22} />
+                  <ShoppingCart size={22} />
                 </div>
                 <div>
                   <div className="mz-stat-number">{summary?.successfulReferrals || 0}</div>

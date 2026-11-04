@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
-import { ShoppingBag, UserRound, X, Shield } from 'lucide-react';
+import { ShoppingCart, UserRound, X, Shield } from 'lucide-react';
 import { useGetCart, useGetCategories, type Category } from '@workspace/api-client-react';
 import { BrandMark } from '@/components/common/BrandMark';
 import { HeaderSearchBar } from '@/components/common/HeaderSearchBar';
@@ -99,8 +99,8 @@ export function SiteLayout({ children }: SiteLayoutProps) {
           <Link href="/account" className="icon-button" aria-label="Account" data-testid="link-account">
             <UserRound size={18} />
           </Link>
-          <Link href="/cart" className="icon-button" aria-label="Shopping bag" data-testid="link-cart">
-            <ShoppingBag size={18} />
+          <Link href="/cart" className="icon-button" aria-label="Shopping cart" data-testid="link-cart">
+            <ShoppingCart size={18} />
             {count > 0 && (
               <span className="cart-count" data-testid="text-cart-count">
                 {count}

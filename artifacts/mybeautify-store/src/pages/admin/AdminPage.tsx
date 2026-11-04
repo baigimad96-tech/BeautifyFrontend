@@ -18,7 +18,6 @@ type AdminProduct = {
   discountPrice?: number | null;
   stockQuantity: number;
   lowStockThreshold: number;
-  brandId: number;
   categoryId: number;
   description: string;
   shortDescription?: string;
@@ -33,14 +32,6 @@ type AdminCategory = {
   name: string;
   description?: string;
   imageUrl?: string;
-  active: boolean;
-};
-
-type AdminBrand = {
-  id: number;
-  name: string;
-  description?: string;
-  logoUrl?: string;
   active: boolean;
 };
 
@@ -345,11 +336,6 @@ function AdminConsole() {
     queryFn: async () => parseList<AdminCategory>(await customFetch<unknown>('/api/categories')),
     enabled: section === 'products' || section === 'categories',
   });
-  const brandsQuery = useQuery({
-    queryKey: ['admin-brands'],
-    queryFn: async () => parseList<AdminBrand>(await customFetch<unknown>('/api/brands')),
-    enabled: section === 'products',
-  });
   const productFields = useMemo<FieldSpec[]>(() => [
     { key: 'name', label: 'Product name', type: 'text', required: true },
     { key: 'sku', label: 'SKU', type: 'text', required: true },
@@ -357,7 +343,6 @@ function AdminConsole() {
     { key: 'discountPrice', label: 'Discount price', type: 'number', min: 0, step: '0.01' },
     { key: 'stockQuantity', label: 'Stock quantity', type: 'number', required: true, min: 0, step: '1' },
     { key: 'lowStockThreshold', label: 'Low stock threshold', type: 'number', required: true, min: 0, step: '1' },
-    { key: 'brandId', label: 'Brand', type: 'select', required: true, options: (brandsQuery.data?.items ?? []).map((brand) => ({ value: String(brand.id), label: brand.name })) },
     { key: 'categoryId', label: 'Category', type: 'select', required: true, options: (categoriesQuery.data?.items ?? []).map((category) => ({ value: String(category.id), label: category.name })) },
     { key: 'shortDescription', label: 'Short description', type: 'textarea' },
     { key: 'description', label: 'Description', type: 'textarea', required: true },
@@ -365,7 +350,7 @@ function AdminConsole() {
     { key: 'size', label: 'Size / dimensions', type: 'text' },
     { key: 'featured', label: 'Featured', type: 'checkbox' },
     { key: 'active', label: 'Active', type: 'checkbox', defaultValue: true },
-  ], [brandsQuery.data?.items, categoriesQuery.data?.items]);
+  ], [categoriesQuery.data?.items]);
 
   const products = productsQuery.data?.items ?? [];
   const lowStockCount = products.filter((product) => product.stockQuantity <= product.lowStockThreshold).length;
@@ -431,11 +416,11 @@ function AdminConsole() {
         </button>
       ))}
     </nav>
-    {section === 'products' && (productsQuery.isLoading || categoriesQuery.isLoading || brandsQuery.isLoading)
+    {section === 'products' && (productsQuery.isLoading || categoriesQuery.isLoading)
       ? <div className="skeleton line" />
-      : section === 'products' && (productsQuery.isError || categoriesQuery.isError || brandsQuery.isError)
-        ? <div className="error-state" role="alert"><h3>We could not load the admin data.</h3><p>{getMessage(productsQuery.error ?? categoriesQuery.error ?? brandsQuery.error)}</p><button className="button secondary" onClick={() => { void productsQuery.refetch(); void categoriesQuery.refetch(); void brandsQuery.refetch(); }}>Try again</button></div>
-        : section === 'products' && productsQuery.data && categoriesQuery.data && brandsQuery.data
+      : section === 'products' && (productsQuery.isError || categoriesQuery.isError)
+        ? <div className="error-state" role="alert"><h3>We could not load the admin data.</h3><p>{getMessage(productsQuery.error ?? categoriesQuery.error)}</p><button className="button secondary" onClick={() => { void productsQuery.refetch(); void categoriesQuery.refetch(); }}>Try again</button></div>
+        : section === 'products' && productsQuery.data && categoriesQuery.data
           ? <>
             <CrudPanel title="Product" endpoint="/api/admin/products" queryKey={['admin-products']} items={productsQuery.data.items} fields={productFields} columns={[
               { label: 'Piece', render: (item) => <div className="admin-product-cell"><img className="admin-product-thumb" src={getJewelleryImage(item.imageUrl, item.name, item.id)} alt="" loading="lazy" onError={(event) => { event.currentTarget.src = getJewelleryImage(null, item.name, item.id); }} /><span>{item.name}</span></div> },

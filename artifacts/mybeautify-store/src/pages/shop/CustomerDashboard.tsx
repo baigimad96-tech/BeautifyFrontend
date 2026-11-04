@@ -7,7 +7,6 @@ import {
   Menu,
   X as CloseIcon,
   ArrowRight,
-  ShoppingBag,
   User as UserIcon,
   ChevronDown,
   ChevronUp,
@@ -906,7 +905,7 @@ export default function CustomerDashboard() {
                 }
                 setActiveModal('cart');
               }}
-              aria-label="View shopping bag"
+              aria-label="View cart"
               data-testid="header-cart-btn"
             >
               <ShoppingCart size={20} />
@@ -1601,7 +1600,7 @@ export default function CustomerDashboard() {
         <div className="mb-drawer-overlay" onClick={() => setActiveModal(null)}>
           <div className="mb-drawer-card" onClick={(e) => e.stopPropagation()}>
             <div className="mb-modal-header">
-              <h3 className="mb-modal-title">Shopping Bag ({cartItemCount})</h3>
+              <h3 className="mb-modal-title">Cart ({cartItemCount})</h3>
               <button
                 type="button"
                 className="mb-modal-close-btn"
@@ -1614,9 +1613,9 @@ export default function CustomerDashboard() {
             <div className="mb-modal-body">
               {!cart?.items?.length ? (
                 <div className="mb-empty-state" style={{ padding: '40px 10px', border: 'none' }}>
-                  <ShoppingBag size={44} style={{ color: 'var(--mb-primary)' }} />
+                  <ShoppingCart size={44} style={{ color: 'var(--mb-primary)' }} />
                   <h4 style={{ fontFamily: 'var(--mb-font-serif)', fontSize: 24, margin: '10px 0 0' }}>
-                    Your bag is empty
+                    Your cart is empty
                   </h4>
                   <p className="mb-empty-desc">
                     Discover MALKAZ jewellery and add your favourite pieces here.

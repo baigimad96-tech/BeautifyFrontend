@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'wouter';
-import { Minus, Plus, ShoppingBag, X } from 'lucide-react';
+import { Minus, Plus, ShoppingCart, X } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetCartQueryKey,
@@ -87,7 +87,7 @@ export function CartPage() {
       <main className="page">
         <div className="catalog-head">
           <div>
-            <div className="eyebrow">Your bag</div>
+            <div className="eyebrow">Your cart</div>
             <h1>Take a moment.</h1>
           </div>
           <p className="section-copy">
@@ -172,7 +172,7 @@ export function CartPage() {
                 onClick={() => clear.mutate(undefined, { onSuccess: refresh })}
                 data-testid="button-clear-cart"
               >
-                Clear bag
+                Clear cart
               </button>
             </section>
 
@@ -252,8 +252,8 @@ export function CartPage() {
           </div>
         ) : (
           <div className="empty-state" style={{ marginTop: 35 }}>
-            <ShoppingBag size={25} />
-            <h2>Your bag is taking a breath.</h2>
+            <ShoppingCart size={25} />
+            <h2>Your cart is taking a breath.</h2>
             <p>Nothing here yet. We have plenty of good ideas.</p>
             <Link href="/shop" className="button" data-testid="link-empty-cart">
               Continue shopping

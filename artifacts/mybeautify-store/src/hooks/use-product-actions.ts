@@ -48,7 +48,7 @@ export function useProductActions() {
         onSuccess: (updatedCart) => {
           qc.setQueryData(getGetCartQueryKey(), updatedCart);
           void qc.invalidateQueries({ queryKey: getGetCartQueryKey() });
-          toast({ title: 'Added to your bag', description: product.name });
+          toast({ title: 'Added to your cart', description: product.name });
         },
         onError: (error) => {
           toast({

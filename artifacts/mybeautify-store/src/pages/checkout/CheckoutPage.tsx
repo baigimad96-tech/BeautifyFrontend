@@ -7,7 +7,7 @@ import {
   Banknote,
   Search,
   Heart,
-  ShoppingBag,
+  ShoppingCart,
   Trash2,
   Tag,
   ShieldCheck,
@@ -512,16 +512,16 @@ export default function CheckoutPage() {
 
       {/* ====================================================================
           2. CHECKOUT PROGRESS STEPPER
-          1. Bag  2. Information  3. Shipping (active)  4. Payment
+          1. Cart  2. Information  3. Shipping (active)  4. Payment
           ==================================================================== */}
       <div className="mb-checkout-stepper-wrap">
         <div className="mb-checkout-stepper">
-          {/* Step 1: Bag */}
+          {/* Step 1: Cart */}
           <div className="mb-checkout-step">
             <div className="mb-checkout-step-circle completed">
-              <ShoppingBag size={17} />
+              <ShoppingCart size={17} />
             </div>
-            <span className="mb-checkout-step-label">Bag</span>
+            <span className="mb-checkout-step-label">Cart</span>
           </div>
 
           <div className="mb-checkout-step-line completed" />
@@ -799,7 +799,7 @@ export default function CheckoutPage() {
             {cartLoading ? (
               <div style={{ textAlign: 'center', padding: '20px 0', color: '#9B6271' }}>
                 <Loader2 size={24} className="animate-spin" style={{ margin: '0 auto 8px' }} />
-                <span>Loading bag items…</span>
+                <span>Loading cart items…</span>
               </div>
             ) : !cart || !cart.items || cart.items.length === 0 ? (
               <div
@@ -811,9 +811,9 @@ export default function CheckoutPage() {
                   border: '1px solid #F6E2E7',
                 }}
               >
-                <ShoppingBag size={28} style={{ color: '#9B6271', margin: '0 auto 8px' }} />
+                <ShoppingCart size={28} style={{ color: '#9B6271', margin: '0 auto 8px' }} />
                 <p style={{ fontSize: 14, color: '#633240', marginBottom: 12 }}>
-                  Your shopping bag is empty.
+                  Your cart is empty.
                 </p>
                 <Link
                   href="/shop"

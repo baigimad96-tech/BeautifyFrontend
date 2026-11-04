@@ -3,7 +3,6 @@ import { useParams, useLocation, Link } from 'wouter';
 import {
   Search,
   Heart,
-  ShoppingBag,
   ShoppingCart,
   User as UserIcon,
   ChevronDown,
@@ -675,7 +674,7 @@ export function ProductDetailPage() {
                 }
                 setActiveModal('cart');
               }}
-              aria-label="View shopping bag"
+              aria-label="View cart"
               data-testid="header-cart-btn"
             >
               <ShoppingCart size={20} />
@@ -1676,7 +1675,7 @@ export function ProductDetailPage() {
         <div className="mb-modal-overlay" onClick={() => setActiveModal(null)}>
           <div className="mb-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="mb-modal-header">
-              <h3 className="mb-modal-title">Shopping Bag ({cartItemCount})</h3>
+              <h3 className="mb-modal-title">Cart ({cartItemCount})</h3>
               <button
                 type="button"
                 className="mb-modal-close-btn"
@@ -1689,9 +1688,9 @@ export function ProductDetailPage() {
             <div className="mb-modal-body">
               {!cart?.items?.length ? (
                 <div className="mb-empty-state" style={{ padding: '40px 10px', border: 'none' }}>
-                  <ShoppingBag size={44} style={{ color: 'var(--mb-primary)' }} />
+                  <ShoppingCart size={44} style={{ color: 'var(--mb-primary)' }} />
                   <h4 style={{ fontFamily: 'var(--mb-font-serif)', fontSize: 24, margin: '10px 0 0' }}>
-                    Your bag is empty
+                    Your cart is empty
                   </h4>
                   <p className="mb-empty-desc">Discover fine jewellery from the MALKAZ collection.</p>
                 </div>
@@ -1860,7 +1859,7 @@ export function ProductDetailPage() {
                           style={{ height: 34, padding: '0 14px', fontSize: 12 }}
                           onClick={() => handleAddRecToCart(item)}
                         >
-                          Add to Bag
+                          Add to Cart
                         </button>
                         <button
                           type="button"

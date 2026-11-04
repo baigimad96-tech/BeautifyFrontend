@@ -10,7 +10,6 @@ export type AdminProduct = {
   discountPrice?: number | null;
   stockQuantity: number;
   lowStockThreshold: number;
-  brandId: number;
   categoryId: number;
   description: string;
   shortDescription?: string;
@@ -31,14 +30,6 @@ export type AdminCategory = {
   name: string;
   description?: string;
   imageUrl?: string;
-  active: boolean;
-};
-
-export type AdminBrand = {
-  id: number;
-  name: string;
-  description?: string;
-  logoUrl?: string;
   active: boolean;
 };
 

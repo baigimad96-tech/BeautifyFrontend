@@ -3,7 +3,6 @@ import { useLocation, Link } from 'wouter';
 import {
   Search,
   Heart,
-  ShoppingBag,
   ShoppingCart,
   User as UserIcon,
   ChevronDown,

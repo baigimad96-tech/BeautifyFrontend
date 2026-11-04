@@ -2,7 +2,7 @@ export function animateProductToCart(source: HTMLElement | null): void {
   if (!source || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
   const cartTarget = document.querySelector<HTMLElement>(
-    '[data-testid="header-cart-btn"], [aria-label="View Cart"], [aria-label="View shopping bag"], .mb-orders-icon-btn'
+    '[data-testid="header-cart-btn"], [aria-label="View Cart"], .mb-orders-icon-btn'
   );
   const image = source instanceof HTMLImageElement
     ? source
