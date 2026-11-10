@@ -1,6 +1,7 @@
 import { Route, Switch, useLocation } from 'wouter';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import CustomerDashboard from '@/pages/shop/CustomerDashboard';
+import CombosOffersPage from '@/pages/shop/CombosOffersPage';
 import ProductDetailPage from '@/pages/products/ProductDetailPage';
 import CategoriesPage from '@/pages/shop/CategoriesPage';
 import BrandsPage from '@/pages/shop/BrandsPage';
@@ -22,6 +23,7 @@ export function AppRoutes() {
       <Switch>
         <Route path="/" component={CustomerDashboard} />
         <Route path="/shop" component={CustomerDashboard} />
+        <Route path="/combos" component={CombosOffersPage} />
         <Route path="/dashboard" component={CustomerDashboard} />
         <Route path="/account" component={CustomerDashboard} />
         <Route path="/share-referral" component={ShareReferralPage} />

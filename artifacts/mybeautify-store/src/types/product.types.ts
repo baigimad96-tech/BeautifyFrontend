@@ -2,6 +2,35 @@
  * Product, Category, Brand, and Review Types
  */
 
+export type ProductRelationshipType = 'VARIANT' | 'SIMILAR' | 'CROSS_SELL';
+
+export interface SimilarProductResponse {
+  id: number;
+  name: string;
+  slug: string;
+  sku?: string;
+  price: number;
+  originalPrice?: number;
+  sellingPrice?: number;
+  imageUrl?: string;
+  categoryName?: string;
+  brandName?: string;
+  relationshipType?: ProductRelationshipType;
+  score?: number;
+  matchReason?: string;
+}
+
+export interface ProductRelationshipResponse {
+  id: number;
+  sourceProductId: number;
+  sourceProductName: string;
+  relatedProductId: number;
+  relatedProductName: string;
+  relationshipType: ProductRelationshipType;
+  displayOrder: number;
+  createdAt: string;
+}
+
 export interface ProductResponse {
   id: number;
   name: string;
@@ -30,6 +59,7 @@ export interface ProductResponse {
   reviewCount?: number;
   expiryDate?: string | null;
   averageRating: number;
+  similarProducts?: SimilarProductResponse[];
 }
 
 export interface ProductFilterParams {

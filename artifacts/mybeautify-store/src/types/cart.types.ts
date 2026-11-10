@@ -11,6 +11,12 @@ export interface CartItemResponse {
   price: number;
   subtotal: number;
   availableStock: number;
+  comboId?: number | null;
+  comboGroupId?: string | null;
+  comboType?: 'PREDEFINED' | 'CUSTOM' | string | null;
+  comboName?: string | null;
+  originalPrice?: number | null;
+  discountAmount?: number | null;
 }
 
 export interface CartResponse {
@@ -50,6 +56,12 @@ export interface OrderItemResponse {
   quantity: number;
   price: number;
   subtotal: number;
+  comboId?: number | null;
+  comboGroupId?: string | null;
+  comboType?: 'PREDEFINED' | 'CUSTOM' | string | null;
+  comboName?: string | null;
+  originalPrice?: number | null;
+  discountAmount?: number | null;
 }
 
 export interface OrderResponse {

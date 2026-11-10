@@ -371,8 +371,93 @@
   color: #876c36;
 }
 
+.admin-relationship-management {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-relationship-intro h2 {
+  margin: 4px 0;
+  color: #063b2f;
+  font: 600 30px 'Cormorant Garamond', Georgia, serif;
+}
+
+.admin-relationship-intro p {
+  margin: 0;
+  color: #69756e;
+  font-size: 12px;
+}
+
+.admin-relationship-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(140px, 1fr) minmax(110px, .7fr);
+  align-items: end;
+  gap: 0 14px;
+}
+
+.admin-relationship-form .form-field {
+  min-width: 0;
+}
+
+.admin-relationship-form .form-field .input,
+.admin-relationship-form .form-field .select {
+  width: 100%;
+}
+
+.admin-relationship-actions {
+  grid-column: 1 / -1;
+  margin-bottom: 12px;
+}
+
+.admin-relationship-list {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-relationship-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #e8dec8;
+  border-radius: 10px;
+  background: #fffefa;
+}
+
+.admin-relationship-order {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  background: #f7f0df;
+  color: #876c36;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.admin-relationship-products {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  color: #123a30;
+  font-size: 12px;
+}
+
+.admin-relationship-products span {
+  color: #69756e;
+  font-size: 11px;
+}
+
 @media (max-width: 900px) {
   .admin-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-relationship-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -409,6 +494,14 @@
     min-height: 86px;
     gap: 0 9px;
     padding: 12px;
+  }
+
+  .admin-relationship-form {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-relationship-actions {
+    grid-column: auto;
   }
 
   .admin-overview-icon {

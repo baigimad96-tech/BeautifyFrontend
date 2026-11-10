@@ -8,6 +8,8 @@ import { getJewelleryImage } from '@/lib/jewellery-images';
 import { uploadImage } from '@/services/uploads/uploads.service';
 import { AuditLogsView } from './AuditLogsView';
 import { DeveloperToolsView } from './DeveloperToolsView';
+import { CombosOffersAdminView } from './CombosOffersAdminView';
+import { ProductRelationshipsAdminView } from './ProductRelationshipsAdminView';
 import '@/styles/admin.css';
 
 type AdminProduct = {
@@ -328,7 +330,7 @@ function CrudPanel<T extends { id: number }>({
 }
 
 function AdminConsole() {
-  const [section, setSection] = useState<'products' | 'categories' | 'audit' | 'developer'>('products');
+  const [section, setSection] = useState<'products' | 'categories' | 'relationships' | 'combos' | 'audit' | 'developer'>('products');
   const [page, setPage] = useState(0);
   const productsQuery = useQuery({
     queryKey: ['admin-products', page],
@@ -400,6 +402,8 @@ function AdminConsole() {
         [
           { id: 'products', label: 'Products' },
           { id: 'categories', label: 'Categories' },
+          { id: 'relationships', label: 'Similar products' },
+          { id: 'combos', label: 'Combos & Offers' },
           { id: 'audit', label: 'Audit Logs' },
           { id: 'developer', label: 'Developer' },
         ] as const
@@ -457,7 +461,11 @@ function AdminConsole() {
                   ? <AuditLogsView />
                   : section === 'developer'
                     ? <DeveloperToolsView />
-                    : null}
+                      : section === 'combos'
+                        ? <CombosOffersAdminView />
+                      : section === 'relationships'
+                        ? <ProductRelationshipsAdminView />
+                      : null}
     <p className="admin-back"><Link href="/account">Back to account</Link></p>
   </main>;
 }

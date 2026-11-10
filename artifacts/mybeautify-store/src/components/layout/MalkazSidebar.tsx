@@ -3,6 +3,7 @@ import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import {
   Headphones,
+  Gift,
   Home,
   LogOut,
   Package,
@@ -95,6 +96,7 @@ export function MalkazSidebar({
   const items: SidebarItem[] = [
     { key: 'home', label: 'Home', icon: <Home size={18} />, href: '/' },
     { key: 'categories', label: 'Categories', icon: <Tags size={18} />, href: '/categories' },
+    { key: 'combos', label: 'Combos & Offers', icon: <Gift size={18} />, href: '/combos' },
     { key: 'orders', label: 'My Orders', icon: <Package size={18} />, href: '/orders' },
     {
       key: 'reviews',

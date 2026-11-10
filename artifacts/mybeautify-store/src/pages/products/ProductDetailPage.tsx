@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useLocation, Link } from 'wouter';
 import {
   Search,
@@ -34,6 +34,7 @@ import { FaFacebookF, FaInstagram, FaTwitter, FaWhatsapp } from 'react-icons/fa'
 import {
   fetchProductById,
   fetchProducts,
+  fetchSimilarProducts,
   fetchProductReviews,
   submitProductReview,
   fetchCurrentUser,
@@ -57,6 +58,7 @@ import {
   type AddressResponse,
   type CouponResponse,
   type ReviewResponse,
+  type SimilarProductResponse,
 } from '@/lib/api';
 import MalkazProductCard, {
   formatCurrency,
@@ -71,6 +73,7 @@ import { HeaderSearchBar } from '@/components/common/HeaderSearchBar';
 import { MalkazSidebar } from '@/components/layout/MalkazSidebar';
 import { getJewelleryImage } from '@/lib/jewellery-images';
 import { animateProductToCart, animateTrashCan } from '@/lib/cart-animations';
+import { removeComboGroupFromCart } from '@/services/combos/combos.service';
 
 export function ProductDetailPage() {
   const params = useParams<{ productId?: string; id?: string }>();
@@ -134,6 +137,10 @@ export function ProductDetailPage() {
   // Recommended Products
   const [recommendedProducts, setRecommendedProducts] = useState<ProductResponse[]>([]);
   const [recommendedPage, setRecommendedPage] = useState(0);
+  const [similarProducts, setSimilarProducts] = useState<SimilarProductResponse[]>([]);
+  const [similarProductsLoading, setSimilarProductsLoading] = useState(false);
+  const [similarProductsError, setSimilarProductsError] = useState<string | null>(null);
+  const similarProductsRequestId = useRef(0);
 
   // Additional data for sub-views
   const [orders, setOrders] = useState<OrderResponse[]>([]);
@@ -149,6 +156,29 @@ export function ProductDetailPage() {
     setTimeout(() => {
       setToastMessage((prev) => (prev === msg ? null : prev));
     }, 3200);
+  }, []);
+
+  const loadSimilarStyles = useCallback(async (id: number) => {
+    const requestId = ++similarProductsRequestId.current;
+    setSimilarProducts([]);
+    setSimilarProductsLoading(true);
+    setSimilarProductsError(null);
+    try {
+      const response = await fetchSimilarProducts(id, { limit: 4, page: 0 });
+      if (requestId === similarProductsRequestId.current) {
+        setSimilarProducts(response.content);
+      }
+    } catch (similarError: unknown) {
+      if (requestId === similarProductsRequestId.current) {
+        setSimilarProductsError(
+          similarError instanceof Error ? similarError.message : 'Similar styles could not be loaded.'
+        );
+      }
+    } finally {
+      if (requestId === similarProductsRequestId.current) {
+        setSimilarProductsLoading(false);
+      }
+    }
   }, []);
 
   // Load user, cart, wishlist, and addresses
@@ -191,6 +221,7 @@ export function ProductDetailPage() {
       return;
     }
 
+    let isActive = true;
     setLoading(true);
     setError(null);
     setActiveImageIndex(0);
@@ -198,8 +229,10 @@ export function ProductDetailPage() {
 
     fetchProductById(productId)
       .then((data) => {
+        if (!isActive) return;
         setProduct(data);
         setLoading(false);
+        void loadSimilarStyles(productId);
 
         // Fetch product reviews
         setReviewsLoading(true);
@@ -220,11 +253,16 @@ export function ProductDetailPage() {
           .catch(() => {});
       })
       .catch((err) => {
+        if (!isActive) return;
         console.error('Failed to load product:', err);
         setError(err.message || 'Product not found');
         setLoading(false);
       });
-  }, [productId]);
+    return () => {
+      isActive = false;
+      similarProductsRequestId.current += 1;
+    };
+  }, [productId, loadSimilarStyles]);
 
   // Gallery images array
   const galleryImages = useMemo(() => {
@@ -509,10 +547,12 @@ export function ProductDetailPage() {
     let restoreTrashIcon = () => {};
     try {
       restoreTrashIcon = await animateTrashCan(removeButton);
-      await removeCartItem(itemId);
+      const item = cart?.items.find((cartItem) => cartItem.id === itemId);
+      if (item?.comboGroupId) await removeComboGroupFromCart(item.comboGroupId);
+      else await removeCartItem(itemId);
       const updated = await fetchCart();
       setCart(updated);
-      showToast('Item removed from cart.');
+      showToast(item?.comboGroupId ? 'Combo removed from cart.' : 'Item removed from cart.');
     } catch (err: any) {
       restoreTrashIcon();
       showToast(err.message || 'Failed to remove item.');
@@ -918,31 +958,32 @@ export function ProductDetailPage() {
             {/* LEFT: IMAGE GALLERY */}
             <div className="mb-gallery-wrap">
               <div className="mb-gallery-main-card">
-                {badge && <span className="mb-gallery-badge">{badge.text}</span>}
+                <div className="mb-gallery-topbar">
+                  {badge && <span className="mb-gallery-badge">{badge.text}</span>}
+                  <div className="mb-gallery-action-buttons">
+                    <button
+                      type="button"
+                      className={`mb-gallery-wish-btn ${isWishlisted ? 'active' : ''}`}
+                      onClick={handleToggleWishlist}
+                      disabled={wishlistLoading}
+                      aria-label={isWishlisted ? 'Remove from Wishlist' : 'Add to Wishlist'}
+                      data-testid="detail-wishlist-toggle"
+                    >
+                      <Heart size={18} fill={isWishlisted ? 'currentColor' : 'none'} />
+                    </button>
 
-                <div className="mb-gallery-action-buttons">
-                  <button
-                    type="button"
-                    className={`mb-gallery-wish-btn ${isWishlisted ? 'active' : ''}`}
-                    onClick={handleToggleWishlist}
-                    disabled={wishlistLoading}
-                    aria-label={isWishlisted ? 'Remove from Wishlist' : 'Add to Wishlist'}
-                    data-testid="detail-wishlist-toggle"
-                  >
-                    <Heart size={18} fill={isWishlisted ? 'currentColor' : 'none'} />
-                  </button>
-
-                  <button
-                    type="button"
-                    className="mb-gallery-share-btn"
-                    onClick={() => setShareMenuOpen((open) => !open)}
-                    aria-label="Share product"
-                    aria-expanded={shareMenuOpen}
-                    aria-controls="product-share-menu"
-                    data-testid="product-share-toggle"
-                  >
-                    <Share2 size={18} />
-                  </button>
+                    <button
+                      type="button"
+                      className="mb-gallery-share-btn"
+                      onClick={() => setShareMenuOpen((open) => !open)}
+                      aria-label="Share product"
+                      aria-expanded={shareMenuOpen}
+                      aria-controls="product-share-menu"
+                      data-testid="product-share-toggle"
+                    >
+                      <Share2 size={18} />
+                    </button>
+                  </div>
                 </div>
 
                 {shareMenuOpen && (
@@ -1015,6 +1056,49 @@ export function ProductDetailPage() {
                   </button>
                 ))}
               </div>
+              {(similarProductsLoading || similarProductsError || similarProducts.length > 0) && (
+                <section className="mb-similar-styles" aria-labelledby="mb-similar-styles-title">
+                  <div className="mb-similar-styles-heading">
+                    <h2 id="mb-similar-styles-title"><span aria-hidden="true">✦</span> Similar Styles</h2>
+                    <Link href="/shop" className="mb-similar-styles-view-all">View all <ChevronRight size={15} /></Link>
+                  </div>
+                  {similarProductsLoading
+                    ? <div className="mb-similar-styles-loading" role="status">Finding similar jewellery…</div>
+                    : similarProductsError
+                      ? <div className="mb-similar-styles-error" role="alert">
+                        <span>{similarProductsError}</span>
+                        <button
+                          type="button"
+                          onClick={() => { void loadSimilarStyles(productId); }}
+                        >
+                          Try again
+                        </button>
+                      </div>
+                      : <div className="mb-similar-styles-grid">
+                        {similarProducts.map((similar) => (
+                          <Link
+                            key={similar.id}
+                            href={`/products/${similar.id}`}
+                            className="mb-similar-style-card"
+                            aria-label={`View ${similar.name}`}
+                          >
+                            <img
+                              src={getJewelleryImage(similar.imageUrl, similar.name, similar.id)}
+                              alt={similar.name}
+                              loading="lazy"
+                              onError={(event) => {
+                                event.currentTarget.src = getJewelleryImage(null, similar.name, similar.id);
+                              }}
+                            />
+                            <span className="mb-similar-style-name">{similar.name}</span>
+                            <span className="mb-similar-style-price">
+                              {formatCurrency(similar.sellingPrice ?? similar.price)}
+                            </span>
+                          </Link>
+                        ))}
+                      </div>}
+                </section>
+              )}
             </div>
 
             {/* RIGHT: PURCHASE INFORMATION */}
@@ -1821,16 +1905,20 @@ export function ProductDetailPage() {
                         }}
                       />
                       <div className="mb-cart-item-details">
+                        {item.comboGroupId && (
+                          <div className="mb-cart-item-combo">{item.comboName || 'Combo offer'}</div>
+                        )}
                         <div className="mb-cart-item-name" title={item.productName}>
                           {item.productName}
                         </div>
                         <div className="mb-cart-item-price">{formatCurrency(item.price)}</div>
                         <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <div className="mb-cart-qty-ctrl">
+                          <div className={`mb-cart-qty-ctrl ${item.comboGroupId ? 'is-combo-fixed' : ''}`}>
                             <button
                               type="button"
                               className="mb-cart-qty-btn"
                               onClick={() => handleUpdateCartQty(item.id, item.quantity - 1)}
+                              disabled={Boolean(item.comboGroupId)}
                             >
                               <Minus size={12} />
                             </button>
@@ -1839,6 +1927,7 @@ export function ProductDetailPage() {
                               type="button"
                               className="mb-cart-qty-btn"
                               onClick={() => handleUpdateCartQty(item.id, item.quantity + 1)}
+                              disabled={Boolean(item.comboGroupId)}
                             >
                               <Plus size={12} />
                             </button>
@@ -1850,8 +1939,8 @@ export function ProductDetailPage() {
                               void handleRemoveCartItem(item.id, event.currentTarget);
                             }}
                             disabled={removingCartItemId !== null}
-                            title={`Remove ${item.productName}`}
-                            aria-label={`Remove ${item.productName} from cart`}
+                            title={item.comboGroupId ? `Remove ${item.comboName || 'combo'} from cart` : `Remove ${item.productName}`}
+                            aria-label={item.comboGroupId ? `Remove ${item.comboName || 'combo'} from cart` : `Remove ${item.productName} from cart`}
                           >
                             <Trash2 size={16} />
                           </button>

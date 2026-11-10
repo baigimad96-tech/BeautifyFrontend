@@ -733,7 +733,9 @@ export default function MyOrdersPage() {
                               />
                               <div className="mb-order-item-details">
                                 <span className="mb-order-item-name">{item.productName}</span>
-                                <span className="mb-order-item-brand">{meta.brand}</span>
+                                {item.comboName
+                                  ? <span className="mb-order-item-brand">{item.comboName}</span>
+                                  : <span className="mb-order-item-brand">{meta.brand}</span>}
                                 {meta.size && <span className="mb-order-item-size">{meta.size}</span>}
                                 <div className="mb-order-item-price-row">
                                   <span>Qty: {item.quantity}</span>

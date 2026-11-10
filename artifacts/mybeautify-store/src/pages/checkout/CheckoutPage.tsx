@@ -45,6 +45,7 @@ import {
 import { CustomerProfilePill, HeaderCartButton } from '@/components/common';
 import { getJewelleryImage } from '@/lib/jewellery-images';
 import { animateTrashCan } from '@/lib/cart-animations';
+import { removeComboGroupFromCart } from '@/services/combos/combos.service';
 import '@/styles/checkout.css';
 
 const getProductImage = (productId: number, imageUrl?: string, productName?: string) =>
@@ -202,9 +203,11 @@ export default function CheckoutPage() {
     let restoreTrashIcon = () => {};
     try {
       restoreTrashIcon = await animateTrashCan(removeButton);
-      await removeCartItem(itemId);
+      const item = cart?.items.find((cartItem) => cartItem.id === itemId);
+      if (item?.comboGroupId) await removeComboGroupFromCart(item.comboGroupId);
+      else await removeCartItem(itemId);
       await loadCartData();
-      showToast('Item removed from cart.');
+      showToast(item?.comboGroupId ? 'Combo removed from cart.' : 'Item removed from cart.');
     } catch (err) {
       restoreTrashIcon();
       console.error('Failed to remove item:', err);
@@ -843,6 +846,9 @@ export default function CheckoutPage() {
                         }}
                       />
                       <div className="mb-checkout-item-details">
+                        {item.comboGroupId && (
+                          <span className="mb-checkout-item-combo">{item.comboName || 'Combo offer'}</span>
+                        )}
                         <span className="mb-checkout-item-title">{item.productName}</span>
                         <span className="mb-checkout-item-qty">Qty: {item.quantity}</span>
                         <span className="mb-checkout-item-price">{formatCurrency(item.price)}</span>
@@ -854,8 +860,8 @@ export default function CheckoutPage() {
                           void handleRemoveItem(item.id, event.currentTarget);
                         }}
                         disabled={removingItemId !== null}
-                        title="Remove item"
-                        aria-label="Remove item"
+                        title={item.comboGroupId ? `Remove ${item.comboName || 'combo'}` : 'Remove item'}
+                        aria-label={item.comboGroupId ? `Remove ${item.comboName || 'combo'} from cart` : 'Remove item'}
                       >
                         <Trash2 size={16} />
                       </button>

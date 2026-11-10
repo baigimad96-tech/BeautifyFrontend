@@ -689,6 +689,12 @@
   line-height: 1.25;
 }
 
+.mb-checkout-item-combo {
+  color: #A77A2D;
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .mb-checkout-item-qty {
   font-size: 12px;
   color: #5A6B64;

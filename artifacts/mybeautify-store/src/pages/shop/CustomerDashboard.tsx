@@ -72,6 +72,7 @@ import MalkazProductCard from '@/components/products/MalkazProductCard';
 import { MalkazSidebar } from '@/components/layout/MalkazSidebar';
 import { getJewelleryImage } from '@/lib/jewellery-images';
 import { animateTrashCan } from '@/lib/cart-animations';
+import { removeComboGroupFromCart } from '@/services/combos/combos.service';
 
 // Currency formatting with Rupee symbol as per reference design
 const formatCurrency = (val: number | undefined | null) => {
@@ -676,9 +677,11 @@ export default function CustomerDashboard() {
     let restoreTrashIcon = () => {};
     try {
       restoreTrashIcon = await animateTrashCan(removeButton);
-      await removeCartItem(itemId);
+      const item = cart?.items.find((cartItem) => cartItem.id === itemId);
+      if (item?.comboGroupId) await removeComboGroupFromCart(item.comboGroupId);
+      else await removeCartItem(itemId);
       setCart(await fetchCart());
-      showToast('Item removed from cart.');
+      showToast(item?.comboGroupId ? 'Combo removed from cart.' : 'Item removed from cart.');
     } catch (err: any) {
       restoreTrashIcon();
       showToast(err.message || 'Failed to remove item.');
@@ -1642,6 +1645,9 @@ export default function CustomerDashboard() {
                         className="mb-cart-item-thumb"
                       />
                       <div className="mb-cart-item-details">
+                        {item.comboGroupId && (
+                          <div className="mb-cart-item-combo">{item.comboName || 'Combo offer'}</div>
+                        )}
                         <div className="mb-cart-item-name" title={item.productName}>
                           {item.productName}
                         </div>
@@ -1649,11 +1655,12 @@ export default function CustomerDashboard() {
                           {formatCurrency(item.price)}
                         </div>
                         <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <div className="mb-cart-qty-ctrl">
+                          <div className={`mb-cart-qty-ctrl ${item.comboGroupId ? 'is-combo-fixed' : ''}`}>
                             <button
                               type="button"
                               className="mb-cart-qty-btn"
                               onClick={() => handleUpdateCartQty(item.id, item.quantity - 1)}
+                              disabled={Boolean(item.comboGroupId)}
                             >
                               <Minus size={12} />
                             </button>
@@ -1662,6 +1669,7 @@ export default function CustomerDashboard() {
                               type="button"
                               className="mb-cart-qty-btn"
                               onClick={() => handleUpdateCartQty(item.id, item.quantity + 1)}
+                              disabled={Boolean(item.comboGroupId)}
                             >
                               <Plus size={12} />
                             </button>
@@ -1673,8 +1681,8 @@ export default function CustomerDashboard() {
                               void handleRemoveCartItem(item.id, event.currentTarget);
                             }}
                             disabled={removingCartItemId !== null}
-                            title={`Remove ${item.productName}`}
-                            aria-label={`Remove ${item.productName} from cart`}
+                            title={item.comboGroupId ? `Remove ${item.comboName || 'combo'} from cart` : `Remove ${item.productName}`}
+                            aria-label={item.comboGroupId ? `Remove ${item.comboName || 'combo'} from cart` : `Remove ${item.productName} from cart`}
                           >
                             <Trash2 size={16} />
                           </button>
