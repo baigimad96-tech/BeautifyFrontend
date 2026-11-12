@@ -22,7 +22,12 @@ import { CategoryManagementAdminView } from './CategoryManagementAdminView';
 import { AdminOrdersView } from './AdminOrdersView';
 import { CouponsAdminView } from './CouponsAdminView';
 import { ReviewsAdminView } from './ReviewsAdminView';
+import { HeroBannersAdminView } from './HeroBannersAdminView';
+import { normalizeList } from '@/utils/array';
+import type { SubcategoryResponse } from '@/types/subcategory.types';
 import '@/styles/admin.css';
+
+export { normalizeList };
 
 type AdminProduct = {
   id: number;
@@ -83,18 +88,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function parseList<T>(value: unknown): PageResult<T> {
-  if (Array.isArray(value)) return { items: value as T[] };
-  if (!isRecord(value)) throw new Error('The server returned an unexpected list response.');
-  if (Array.isArray(value.content)) {
+  const items = normalizeList<T>(value);
+  if (isRecord(value)) {
     return {
-      items: value.content as T[],
+      items,
       totalPages: typeof value.totalPages === 'number' ? value.totalPages : undefined,
-      totalItems: typeof value.totalElements === 'number' ? value.totalElements : undefined,
+      totalItems: typeof value.totalElements === 'number' ? value.totalElements : items.length,
     };
   }
-  if (Array.isArray(value.data)) return { items: value.data as T[] };
-  if (isRecord(value.data)) return parseList<T>(value.data);
-  throw new Error('The server returned an unexpected list response.');
+  return { items };
 }
 
 function getMessage(error: unknown): string {
@@ -175,7 +177,9 @@ function CrudPanel<T extends { id: number }>({
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
-  const selectedCategory = categories?.find((c) => String(c.id) === String(values.categoryId));
+  const safeItems = normalizeList<T>(items);
+  const safeCategories = normalizeList<AdminCategory>(categories);
+  const selectedCategory = safeCategories.find((c) => String(c.id) === String(values.categoryId));
   const selectedCategoryName = selectedCategory?.name;
   const categorySpecificAttributes = getCategoryAttributes(selectedCategoryName);
 
@@ -516,17 +520,17 @@ function CrudPanel<T extends { id: number }>({
       </form>
     </section>
     <section className="admin-card">
-      <div className="admin-card-heading"><div><div className="eyebrow">Current records</div><h2>{title} ({items.length})</h2></div></div>
+      <div className="admin-card-heading"><div><div className="eyebrow">Current records</div><h2>{title} ({safeItems.length})</h2></div></div>
       <div className="admin-table-wrap"><table className="admin-table">
         <thead><tr>{columns.map((column) => <th key={column.label}>{column.label}</th>)}<th>Actions</th></tr></thead>
-        <tbody>{items.map((item) => <tr key={item.id}>
+        <tbody>{safeItems.map((item) => <tr key={item.id}>
           {columns.map((column) => <td key={column.label}>{column.render(item)}</td>)}
           <td className="admin-actions">
             <button type="button" className="icon-button" onClick={() => beginEdit(item)} aria-label={`Edit ${title}`} title="Edit"><Pencil size={15} /></button>
             <button type="button" className="icon-button admin-delete" onClick={() => remove(item)} aria-label={`Delete ${title}`} title="Delete" disabled={mutation.isPending}><Trash2 size={15} /></button>
           </td>
         </tr>)}
-        {!items.length && <tr><td colSpan={columns.length + 1} className="admin-empty">No records found.</td></tr>}
+        {!safeItems.length && <tr><td colSpan={columns.length + 1} className="admin-empty">No records found.</td></tr>}
         </tbody>
       </table></div>
     </section>
@@ -534,7 +538,7 @@ function CrudPanel<T extends { id: number }>({
 }
 
 function AdminConsole() {
-  const [section, setSection] = useState<'products' | 'categories' | 'orders' | 'coupons' | 'reviews' | 'relationships' | 'combos' | 'audit' | 'developer'>('products');
+  const [section, setSection] = useState<'products' | 'categories' | 'banners' | 'orders' | 'coupons' | 'reviews' | 'relationships' | 'combos' | 'audit' | 'developer'>('products');
   const [page, setPage] = useState(0);
 
   const dashboardQuery = useQuery({
@@ -553,15 +557,19 @@ function AdminConsole() {
     enabled: section === 'products',
   });
   const categoriesQuery = useQuery({
-    queryKey: ['admin-categories'],
+    queryKey: ['admin-categories-overview-list'],
     queryFn: async () => parseList<AdminCategory>(await customFetch<unknown>('/api/categories')),
-    enabled: section === 'products' || section === 'categories',
   });
   const allSubcategoriesQuery = useQuery({
     queryKey: ['admin-all-subcategories'],
     queryFn: () => fetchAdminSubcategories({ size: 200 }),
     enabled: section === 'products',
   });
+
+  const categoriesList = normalizeList<AdminCategory>(categoriesQuery.data?.items ?? categoriesQuery.data);
+  const productsList = normalizeList<AdminProduct>(productsQuery.data?.items ?? productsQuery.data);
+  const allSubcategoriesList = normalizeList<SubcategoryResponse>(allSubcategoriesQuery.data?.content ?? allSubcategoriesQuery.data);
+
   const productFields = useMemo<FieldSpec[]>(() => [
     { key: 'name', label: 'Product name', type: 'text', required: true },
     { key: 'sku', label: 'SKU', type: 'text', required: true },
@@ -569,16 +577,16 @@ function AdminConsole() {
     { key: 'discountPrice', label: 'Discount price', type: 'number', min: 0, step: '0.01' },
     { key: 'stockQuantity', label: 'Stock quantity', type: 'number', required: true, min: 0, step: '1' },
     { key: 'lowStockThreshold', label: 'Low stock threshold', type: 'number', required: true, min: 0, step: '1' },
-    { key: 'categoryId', label: 'Category', type: 'select', required: true, options: (categoriesQuery.data?.items ?? []).map((category) => ({ value: String(category.id), label: category.name })) },
-    { key: 'subcategoryId', label: 'Subcategory (Optional)', type: 'select', options: [{ value: '', label: 'None (Parent category only)' }, ...(allSubcategoriesQuery.data?.content ?? []).map((sub) => ({ value: String(sub.id), label: `${sub.name} (${sub.categoryName || 'Category #' + sub.categoryId})` }))] },
+    { key: 'categoryId', label: 'Category', type: 'select', required: true, options: categoriesList.map((category) => ({ value: String(category.id), label: category.name })) },
+    { key: 'subcategoryId', label: 'Subcategory (Optional)', type: 'select', options: [{ value: '', label: 'None (Parent category only)' }, ...allSubcategoriesList.map((sub) => ({ value: String(sub.id), label: `${sub.name} (${sub.categoryName || 'Category #' + sub.categoryId})` }))] },
     { key: 'shortDescription', label: 'Short description', type: 'textarea' },
     { key: 'description', label: 'Description', type: 'textarea', required: true },
     { key: 'imageFile', label: 'Upload image', type: 'file', accept: 'image/jpeg,image/png,image/webp', hint: 'JPEG, PNG, or WebP. Maximum file size: 5 MB. A selected file replaces the current image.' },
     { key: 'featured', label: 'Featured', type: 'checkbox' },
     { key: 'active', label: 'Active', type: 'checkbox', defaultValue: true },
-  ], [categoriesQuery.data?.items]);
+  ], [categoriesList, allSubcategoriesList]);
 
-  const products = productsQuery.data?.items ?? [];
+  const products = productsList;
   const lowStockCount = products.filter((product) => product.stockQuantity <= product.lowStockThreshold).length;
   const activeProducts = products.filter((product) => product.active).length;
 
@@ -604,7 +612,7 @@ function AdminConsole() {
       </article>
       <article className="admin-overview-card">
         <div className="admin-overview-icon"><Layers3 size={19} /></div>
-        <div><span>Collections</span><strong>{categoriesQuery.data?.items.length ?? '—'}</strong></div>
+        <div><span>Collections</span><strong>{categoriesList.length || '—'}</strong></div>
         <small>Parent categories</small>
       </article>
       <article className="admin-overview-card">
@@ -623,6 +631,7 @@ function AdminConsole() {
         [
           { id: 'products', label: 'Products' },
           { id: 'categories', label: 'Categories' },
+          { id: 'banners', label: 'Hero Banners' },
           { id: 'orders', label: 'Orders' },
           { id: 'coupons', label: 'Coupons' },
           { id: 'reviews', label: 'Reviews' },
@@ -651,9 +660,9 @@ function AdminConsole() {
       ? <div className="skeleton line" />
       : section === 'products' && (productsQuery.isError || categoriesQuery.isError)
         ? <div className="error-state" role="alert"><h3>We could not load the admin data.</h3><p>{getMessage(productsQuery.error ?? categoriesQuery.error)}</p><button className="button secondary" onClick={() => { void productsQuery.refetch(); void categoriesQuery.refetch(); }}>Try again</button></div>
-        : section === 'products' && productsQuery.data && categoriesQuery.data
+        : section === 'products' && productsQuery.data
           ? <>
-            <CrudPanel title="Product" endpoint="/api/admin/products" queryKey={['admin-products']} items={productsQuery.data.items} fields={productFields} categories={categoriesQuery.data.items} columns={[
+            <CrudPanel title="Product" endpoint="/api/admin/products" queryKey={['admin-products']} items={productsList} fields={productFields} categories={categoriesList} columns={[
               { label: 'Piece', render: (item) => <div className="admin-product-cell"><img className="admin-product-thumb" src={getJewelleryImage(item.imageUrl, item.name, item.id)} alt="" loading="lazy" onError={(event) => { event.currentTarget.src = getJewelleryImage(null, item.name, item.id); }} /><span>{item.name}</span></div> },
               { label: 'SKU', render: (item) => item.sku },
               { label: 'Price', render: (item) => `₹${Number(item.discountPrice ?? item.price).toLocaleString('en-IN', { maximumFractionDigits: 2 })}` },
@@ -668,7 +677,9 @@ function AdminConsole() {
           </>
           : section === 'categories'
             ? <CategoryManagementAdminView />
-            : section === 'orders'
+            : section === 'banners'
+              ? <HeroBannersAdminView />
+              : section === 'orders'
                   ? <AdminOrdersView />
                   : section === 'coupons'
                     ? <CouponsAdminView />

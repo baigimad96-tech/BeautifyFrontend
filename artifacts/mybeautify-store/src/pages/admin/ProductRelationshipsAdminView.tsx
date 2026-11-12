@@ -9,6 +9,7 @@ import {
   fetchProducts,
 } from '@/services/products/products.service';
 import type { ProductRelationshipType } from '@/types/product.types';
+import { normalizeList } from '@/utils/array';
 
 const RELATIONSHIP_TYPES: Array<{ value: ProductRelationshipType; label: string }> = [
   { value: 'VARIANT', label: 'Variant' },
@@ -73,10 +74,11 @@ export function ProductRelationshipsAdminView() {
     },
   });
 
-  const products = productsQuery.data?.content ?? [];
+  const products = normalizeList<any>(productsQuery.data?.content ?? productsQuery.data);
+  const safeRelationships = normalizeList<any>(relationshipsQuery.data);
   const relatedOptions = products.filter((product) =>
     product.id !== sourceId
-    && !relationshipsQuery.data?.some((relationship) => relationship.relatedProductId === product.id)
+    && !safeRelationships.some((relationship) => relationship.relatedProductId === product.id)
   );
   const submitRelationship = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -176,7 +178,7 @@ export function ProductRelationshipsAdminView() {
       {sourceId > 0 && (
         <section className="admin-card">
           <div className="admin-card-heading">
-            <div><div className="eyebrow">Configured links</div><h2>Product relationships ({relationshipsQuery.data?.length ?? 0})</h2></div>
+            <div><div className="eyebrow">Configured links</div><h2>Product relationships ({safeRelationships.length})</h2></div>
           </div>
           {relationshipsQuery.isLoading
             ? <div className="skeleton line" />
@@ -186,7 +188,7 @@ export function ProductRelationshipsAdminView() {
                 <button type="button" className="button secondary" onClick={() => { void relationshipsQuery.refetch(); }}>Try again</button>
               </div>
               : <div className="admin-relationship-list">
-                {[...(relationshipsQuery.data ?? [])]
+                {[...safeRelationships]
                   .sort((left, right) => left.displayOrder - right.displayOrder)
                   .map((relationship) => (
                     <div className="admin-relationship-row" key={relationship.id}>

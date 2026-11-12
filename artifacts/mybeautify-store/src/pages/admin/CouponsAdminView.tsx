@@ -22,6 +22,7 @@ import {
   type AdminCouponRequest,
   type AdminCouponResponse,
 } from '@/services/coupons/coupons.service';
+import { normalizeList } from '@/utils/array';
 
 const EMPTY_COUPON_FORM = {
   code: '',
@@ -49,7 +50,7 @@ export function CouponsAdminView() {
     queryFn: () => fetchAdminCoupons(page, 20),
   });
 
-  const coupons = data?.content ?? [];
+  const coupons = normalizeList<AdminCouponResponse>(data?.content ?? data);
   const totalPages = data?.totalPages ?? 1;
 
   const saveMutation = useMutation({

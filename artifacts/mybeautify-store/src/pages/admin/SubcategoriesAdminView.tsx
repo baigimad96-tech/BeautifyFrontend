@@ -12,6 +12,7 @@ import {
 } from '@/services/subcategories/subcategories.service';
 import type { SubcategoryRequest, SubcategoryResponse } from '@/types/subcategory.types';
 import { getJewelleryImage } from '@/lib/jewellery-images';
+import { normalizeList } from '@/utils/array';
 
 type CategoryOption = {
   id: number;
@@ -75,8 +76,8 @@ export function SubcategoriesAdminView() {
       }),
   });
 
-  const categories = categoriesQuery.data ?? [];
-  const subcategories = subcategoriesQuery.data?.content ?? [];
+  const categories = normalizeList<CategoryOption>(categoriesQuery.data);
+  const subcategories = normalizeList<SubcategoryResponse>(subcategoriesQuery.data?.content ?? subcategoriesQuery.data);
   const totalPages = subcategoriesQuery.data?.totalPages ?? 1;
 
   // Handle preview for chosen file

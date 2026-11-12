@@ -21,6 +21,7 @@ import type {
   ComboDiscountRulePayload,
   ComboWritePayload,
 } from '@/types/combo.types';
+import { normalizeList } from '@/utils/array';
 import '@/styles/combos-admin.css';
 
 type ComboItemDraft = { productId: string; quantity: string; customPrice: string };
@@ -416,7 +417,7 @@ export function CombosOffersAdminView() {
                   <div className="admin-combo-item-row" key={`combo-item-${index}`}>
                     <select className="select" aria-label={`Combo product ${index + 1}`} required value={item.productId} onChange={(event) => updateProductItem(index, { productId: event.target.value })}>
                       <option value="">Select product</option>
-                      {(productsQuery.data ?? []).map((product) => <option key={product.id} value={product.id}>{product.name} · {money(product.sellingPrice || product.discountPrice || product.price)}</option>)}
+                      {normalizeList<any>(productsQuery.data).map((product) => <option key={product.id} value={product.id}>{product.name} · {money(product.sellingPrice || product.discountPrice || product.price)}</option>)}
                     </select>
                     <input className="input" type="number" min="1" step="1" aria-label={`Quantity for product ${index + 1}`} value={item.quantity} onChange={(event) => updateProductItem(index, { quantity: event.target.value })} />
                     <input className="input" type="number" min="0" step="0.01" aria-label={`Custom price for product ${index + 1}`} placeholder="Optional price" value={item.customPrice} onChange={(event) => updateProductItem(index, { customPrice: event.target.value })} />
@@ -436,14 +437,14 @@ export function CombosOffersAdminView() {
 
           <section className="admin-card admin-combo-list">
             <div className="admin-card-heading">
-              <div><div className="eyebrow">Offers catalogue</div><h2>Predefined combos ({combosQuery.data?.length ?? 0})</h2></div>
+              <div><div className="eyebrow">Offers catalogue</div><h2>Predefined combos ({normalizeList<Combo>(combosQuery.data).length})</h2></div>
               <label className="admin-combo-search"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search combos" aria-label="Search combos" /></label>
             </div>
             {combosQuery.isLoading ? <div className="skeleton line" />
               : combosQuery.isError ? <div className="error-state" role="alert"><p>{messageOf(combosQuery.error)}</p><button className="button secondary" onClick={() => { void combosQuery.refetch(); }}>Try again</button></div>
                 : <div className="admin-table-wrap"><table className="admin-table">
                   <thead><tr><th>Combo</th><th>Items</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead>
-                  <tbody>{(combosQuery.data ?? []).map((combo) => <tr key={combo.id}>
+                  <tbody>{normalizeList<Combo>(combosQuery.data).map((combo) => <tr key={combo.id}>
                     <td><strong>{combo.name}</strong><small className="admin-combo-slug">{combo.slug}</small></td>
                     <td>{combo.items?.length ?? 0} products</td>
                     <td>{money(combo.sellingPrice)}<small className="admin-combo-slug">Was {money(combo.originalPrice)}</small></td>
@@ -454,7 +455,7 @@ export function CombosOffersAdminView() {
                       <button type="button" className="icon-button admin-delete" title="Delete combo" aria-label={`Delete ${combo.name}`} disabled={comboDeleteMutation.isPending} onClick={() => { if (window.confirm(`Delete "${combo.name}"?`)) comboDeleteMutation.mutate(combo.id); }}><Trash2 size={15} /></button>
                     </td>
                   </tr>)}
-                  {!combosQuery.data?.length && <tr><td colSpan={5} className="admin-empty">No combos found.</td></tr>}</tbody>
+                  {!normalizeList<Combo>(combosQuery.data).length && <tr><td colSpan={5} className="admin-empty">No combos found.</td></tr>}</tbody>
                 </table></div>}
           </section>
         </div>
@@ -486,12 +487,12 @@ export function CombosOffersAdminView() {
             </form>
           </section>
           <section className="admin-card admin-combo-list">
-            <div className="admin-card-heading"><div><div className="eyebrow">Server-side pricing</div><h2>Custom combo rules ({rulesQuery.data?.length ?? 0})</h2></div><CircleDollarSign size={22} /></div>
+            <div className="admin-card-heading"><div><div className="eyebrow">Server-side pricing</div><h2>Custom combo rules ({normalizeList<ComboDiscountRule>(rulesQuery.data).length})</h2></div><CircleDollarSign size={22} /></div>
             {rulesQuery.isLoading ? <div className="skeleton line" />
               : rulesQuery.isError ? <div className="error-state" role="alert"><p>{messageOf(rulesQuery.error)}</p><button className="button secondary" onClick={() => { void rulesQuery.refetch(); }}>Try again</button></div>
                 : <div className="admin-table-wrap"><table className="admin-table">
                   <thead><tr><th>Rule</th><th>Minimum</th><th>Discount</th><th>Limit</th><th>Status</th><th>Actions</th></tr></thead>
-                  <tbody>{(rulesQuery.data ?? []).map((rule) => <tr key={rule.id}>
+                  <tbody>{normalizeList<ComboDiscountRule>(rulesQuery.data).map((rule) => <tr key={rule.id}>
                     <td><strong>{rule.name}</strong><small className="admin-combo-slug">{rule.description}</small></td>
                     <td>{rule.minProducts}+ products{rule.minSubtotal != null ? <small className="admin-combo-slug">From {money(rule.minSubtotal)}</small> : null}</td>
                     <td>{rule.discountType === 'PERCENTAGE' ? `${rule.discountValue}%` : money(rule.discountValue)}</td>
@@ -502,7 +503,7 @@ export function CombosOffersAdminView() {
                       <button type="button" className="icon-button admin-delete" title="Delete rule" aria-label={`Delete ${rule.name}`} disabled={ruleDeleteMutation.isPending} onClick={() => { if (window.confirm(`Delete "${rule.name}"?`)) ruleDeleteMutation.mutate(rule.id); }}><Trash2 size={15} /></button>
                     </td>
                   </tr>)}
-                  {!rulesQuery.data?.length && <tr><td colSpan={6} className="admin-empty">No custom combo rules found.</td></tr>}</tbody>
+                  {!normalizeList<ComboDiscountRule>(rulesQuery.data).length && <tr><td colSpan={6} className="admin-empty">No custom combo rules found.</td></tr>}</tbody>
                 </table></div>}
           </section>
           <p className="admin-combo-security-note"><CalendarClock size={16} /> Pricing and discount allocation are recalculated by the server; customers never submit prices.</p>

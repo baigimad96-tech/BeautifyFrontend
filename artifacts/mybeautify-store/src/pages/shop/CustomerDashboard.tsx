@@ -72,7 +72,11 @@ import { AnnouncementBar } from '@/components/common/AnnouncementBar';
 import { BrandMark } from '@/components/common/BrandMark';
 import MalkazProductCard from '@/components/products/MalkazProductCard';
 import { MalkazSidebar } from '@/components/layout/MalkazSidebar';
-import { getJewelleryImage } from '@/lib/jewellery-images';
+import { getJewelleryImage, resolveImageUrl, handleImageError } from '@/lib/jewellery-images';
+import { fetchBanners } from '@/services/banners/banners.service';
+import type { HeroBanner } from '@/types/banner.types';
+import { INDIAN_STATES_AND_UTS, getCitiesForState, findMatchingState } from '@/constants/indian-states-cities';
+import { extractArray } from '@/utils/array';
 import { animateTrashCan } from '@/lib/cart-animations';
 import { removeComboGroupFromCart } from '@/services/combos/combos.service';
 import { fetchActiveCoupons, type AdminCouponResponse } from '@/services/coupons/coupons.service';
@@ -279,10 +283,70 @@ export default function CustomerDashboard() {
   const [orders, setOrders] = useState<OrderResponse[]>([]);
   const [addresses, setAddresses] = useState<AddressResponse[]>([]);
   const [newAddress, setNewAddress] = useState({ street: '', city: '', state: '', zipCode: '', country: 'India' });
+  const [customAddressCity, setCustomAddressCity] = useState('');
+  const [liveBanners, setLiveBanners] = useState<HeroBanner[]>([]);
   const [couponCodeInput, setCouponCodeInput] = useState('');
   const [couponResult, setCouponResult] = useState<CouponResponse | null>(null);
   const [couponError, setCouponError] = useState('');
   const [profilePhone, setProfilePhone] = useState('');
+
+  const citiesForNewAddress = useMemo(() => getCitiesForState(newAddress.state), [newAddress.state]);
+
+  const effectiveSlides = useMemo(() => {
+    if (liveBanners.length > 0) {
+      return liveBanners.map((b) => ({
+        tagline: b.subtitle || 'FINE JEWELLERY COLLECTION',
+        title: b.title,
+        subtitle: b.description || b.subtitle || '',
+        image: resolveImageUrl(b.imageUrl),
+        imageAlt: b.title,
+        action: b.ctaText || 'Explore Collection',
+        link: b.ctaLink || '/shop',
+      }));
+    }
+    return HERO_SLIDES.map((s) => ({
+      ...s,
+      link: '/shop',
+    }));
+  }, [liveBanners]);
+
+  const hasUnavailableCartItems = useMemo(() => {
+    if (!cart?.items) return false;
+    return cart.items.some(
+      (item) => (item.availableStock !== undefined && item.availableStock <= 0) || (item.availableStock !== undefined && item.availableStock > 0 && item.quantity > item.availableStock)
+    );
+  }, [cart?.items]);
+
+  const handleRemoveAllUnavailableCartItems = async () => {
+    if (!cart?.items) return;
+    const unavailable = cart.items.filter(
+      (item) => (item.availableStock !== undefined && item.availableStock <= 0) || (item.availableStock !== undefined && item.availableStock > 0 && item.quantity > item.availableStock)
+    );
+    for (const item of unavailable) {
+      try {
+        if (item.comboGroupId) {
+          await removeComboGroupFromCart(item.comboGroupId);
+        } else {
+          await removeCartItem(item.id);
+        }
+      } catch (err) {
+        console.error('Failed to remove item', err);
+      }
+    }
+    try {
+      const refreshedCart = await fetchCart();
+      setCart(refreshedCart);
+    } catch {}
+    showToast('Unavailable items removed from cart.');
+  };
+
+  useEffect(() => {
+    fetchBanners().then((data) => {
+      if (data && data.length > 0) {
+        setLiveBanners(data);
+      }
+    });
+  }, []);
 
   // Show toast notification helper
   const showToast = useCallback((msg: string) => {
@@ -476,13 +540,13 @@ export default function CustomerDashboard() {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     const intervalId = window.setInterval(() => {
-      if (!document.hidden) {
-        setActiveHeroSlide((current) => (current + 1) % HERO_SLIDES.length);
+      if (!document.hidden && effectiveSlides.length > 0) {
+        setActiveHeroSlide((current) => (current + 1) % effectiveSlides.length);
       }
-    }, 3500);
+    }, 4000);
 
     return () => window.clearInterval(intervalId);
-  }, []);
+  }, [effectiveSlides.length]);
 
   useEffect(() => {
     if (!filterOpen) return;
@@ -904,14 +968,20 @@ export default function CustomerDashboard() {
   // Add Address Handler
   const handleAddAddress = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newAddress.street || !newAddress.city) {
-      showToast('Please enter street and city.');
+    const finalCity = newAddress.city === 'Other' ? customAddressCity.trim() : newAddress.city.trim();
+    if (!newAddress.street || !newAddress.state || !finalCity) {
+      showToast('Please fill in street address, state, and city.');
       return;
     }
     try {
-      const created = await apiAddAddress(newAddress);
+      const created = await apiAddAddress({
+        ...newAddress,
+        state: newAddress.state.trim(),
+        city: finalCity,
+      });
       setAddresses((prev) => [...prev, created]);
       setNewAddress({ street: '', city: '', state: '', zipCode: '', country: 'India' });
+      setCustomAddressCity('');
       showToast('Address added successfully.');
     } catch (err: any) {
       showToast(err.message || 'Failed to add address.');
@@ -1270,58 +1340,74 @@ export default function CustomerDashboard() {
         {/* Page Body Container */}
         <main className="mb-page-body mz-page-body">
           {/* ================================================================
-              3. ROYAL HERO BANNER
+              3. ROYAL HERO BANNER (Admin Managed Live Carousel)
               ================================================================ */}
-          <section
-            className="mb-hero-banner mz-hero-banner mz-scroll-reveal"
-          >
-            <div
-              className="mb-hero-left mz-hero-left"
-              key={HERO_SLIDES[activeHeroSlide].title}
-            >
-              <div className="mz-hero-tagline">{HERO_SLIDES[activeHeroSlide].tagline}</div>
-              <h1 className="mz-hero-title">{HERO_SLIDES[activeHeroSlide].title}</h1>
-              <p className="mz-hero-subtitle">{HERO_SLIDES[activeHeroSlide].subtitle}</p>
-              <a
-                href="/shop"
-                className="mz-hero-cta-btn"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setLocation('/shop');
-                }}
+          {(() => {
+            const currentSlide = effectiveSlides[activeHeroSlide % effectiveSlides.length] || effectiveSlides[0];
+            return (
+              <section
+                className="mb-hero-banner mz-hero-banner mz-scroll-reveal"
               >
-                <span>{HERO_SLIDES[activeHeroSlide].action}</span>
-                <ArrowRight size={15} />
-              </a>
-              <div className="mz-hero-controls" aria-label="Promotional carousel controls">
-                <div className="mz-hero-dots">
-                  {HERO_SLIDES.map((slide, index) => (
-                    <button
-                      type="button"
-                      key={slide.title}
-                      className={`mz-hero-dot ${activeHeroSlide === index ? 'active' : ''}`}
-                      aria-label={`Show promotion ${index + 1}`}
-                      aria-pressed={activeHeroSlide === index}
-                      onClick={() => setActiveHeroSlide(index)}
-                    />
-                  ))}
+                <div
+                  className="mb-hero-left mz-hero-left"
+                  key={`${currentSlide.title}-${activeHeroSlide}`}
+                >
+                  <div className="mz-hero-tagline">{currentSlide.tagline}</div>
+                  <h1 className="mz-hero-title">{currentSlide.title}</h1>
+                  <p className="mz-hero-subtitle">{currentSlide.subtitle}</p>
+                  <a
+                    href={currentSlide.link}
+                    className="mz-hero-cta-btn"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (currentSlide.link.startsWith('#')) {
+                        const target = document.querySelector(currentSlide.link);
+                        if (target) {
+                          target.scrollIntoView({ behavior: 'smooth' });
+                          return;
+                        }
+                      }
+                      setLocation(currentSlide.link);
+                    }}
+                  >
+                    <span>{currentSlide.action}</span>
+                    <ArrowRight size={15} />
+                  </a>
+                  <div className="mz-hero-controls" aria-label="Promotional carousel controls">
+                    <div className="mz-hero-dots">
+                      {effectiveSlides.map((slide, index) => (
+                        <button
+                          type="button"
+                          key={`${slide.title}-${index}`}
+                          className={`mz-hero-dot ${activeHeroSlide % effectiveSlides.length === index ? 'active' : ''}`}
+                          aria-label={`Show promotion ${index + 1}`}
+                          aria-pressed={activeHeroSlide % effectiveSlides.length === index}
+                          onClick={() => setActiveHeroSlide(index)}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            <div className="mb-hero-right mz-hero-right">
-              {HERO_SLIDES.map((slide, index) => (
-                <img
-                  key={slide.image}
-                  src={slide.image}
-                  alt={index === activeHeroSlide ? slide.imageAlt : ''}
-                  aria-hidden={index !== activeHeroSlide}
-                  className={`mz-hero-banner-img ${index === activeHeroSlide ? 'is-active' : ''}`}
-                  loading="eager"
-                />
-              ))}
-            </div>
-          </section>
+                <div className="mb-hero-right mz-hero-right">
+                  {effectiveSlides.map((slide, index) => {
+                    const isActive = index === (activeHeroSlide % effectiveSlides.length);
+                    return (
+                      <img
+                        key={`${slide.image}-${index}`}
+                        src={resolveImageUrl(slide.image)}
+                        alt={isActive ? slide.imageAlt : ''}
+                        aria-hidden={!isActive}
+                        className={`mz-hero-banner-img ${isActive ? 'is-active' : ''}`}
+                        loading="eager"
+                        onError={handleImageError}
+                      />
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })()}
 
           {/* Decorative Gold Ornament Separator */}
           <div className="mz-ornament-divider">
@@ -2069,6 +2155,19 @@ export default function CustomerDashboard() {
                 </div>
               ) : (
                 <div>
+                  {hasUnavailableCartItems && (
+                    <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', marginBottom: 12, color: '#991B1B', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                      <span>Some items in your cart are currently out of stock.</span>
+                      <button
+                        type="button"
+                        className="button secondary small"
+                        style={{ fontSize: 11, padding: '3px 8px', color: '#991B1B', borderColor: '#FECACA', whiteSpace: 'nowrap' }}
+                        onClick={handleRemoveAllUnavailableCartItems}
+                      >
+                        Remove Unavailable
+                      </button>
+                    </div>
+                  )}
                   {groupedCartEntries.map((entry) => {
                     if (entry.type === 'combo') {
                       return (
@@ -2138,6 +2237,16 @@ export default function CustomerDashboard() {
                           <div className="mb-cart-item-price">
                             {formatCurrency(item.price)}
                           </div>
+                          {item.availableStock !== undefined && item.availableStock <= 0 && (
+                            <div style={{ background: '#FEE2E2', color: '#B91C1C', padding: '2px 6px', borderRadius: 4, fontSize: 11, fontWeight: 700, width: 'fit-content', marginTop: 4 }}>
+                              Out of stock
+                            </div>
+                          )}
+                          {item.availableStock !== undefined && item.availableStock > 0 && item.quantity > item.availableStock && (
+                            <div style={{ background: '#FEF3C7', color: '#B45309', padding: '2px 6px', borderRadius: 4, fontSize: 11, fontWeight: 700, width: 'fit-content', marginTop: 4 }}>
+                              Only {item.availableStock} in stock
+                            </div>
+                          )}
                           <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
                             <div className="mb-cart-qty-ctrl">
                               <button
@@ -2199,8 +2308,19 @@ export default function CustomerDashboard() {
                     <button
                       type="button"
                       className="mb-card-add-btn mz-card-add-btn"
-                      style={{ height: 44, marginTop: 20, fontSize: 14 }}
+                      style={{
+                        height: 44,
+                        marginTop: 20,
+                        fontSize: 14,
+                        opacity: hasUnavailableCartItems ? 0.6 : 1,
+                        cursor: hasUnavailableCartItems ? 'not-allowed' : 'pointer',
+                      }}
+                      disabled={hasUnavailableCartItems}
                       onClick={() => {
+                        if (hasUnavailableCartItems) {
+                          showToast('Please remove out of stock items from your cart to proceed.');
+                          return;
+                        }
                         setActiveModal(null);
                         setLocation('/checkout');
                       }}
@@ -2531,20 +2651,53 @@ export default function CustomerDashboard() {
                     onChange={(e) => setNewAddress({ ...newAddress, street: e.target.value })}
                     style={{ gridColumn: 'span 2', height: 38, padding: '0 10px', borderRadius: 8, border: '1px solid var(--mb-border)' }}
                   />
-                  <input
-                    type="text"
-                    placeholder="City"
-                    value={newAddress.city}
-                    onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
-                    style={{ height: 38, padding: '0 10px', borderRadius: 8, border: '1px solid var(--mb-border)' }}
-                  />
-                  <input
-                    type="text"
-                    placeholder="State"
+                  <select
                     value={newAddress.state}
-                    onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value })}
-                    style={{ height: 38, padding: '0 10px', borderRadius: 8, border: '1px solid var(--mb-border)' }}
-                  />
+                    onChange={(e) => {
+                      const nextState = e.target.value;
+                      setNewAddress({ ...newAddress, state: nextState, city: '' });
+                      setCustomAddressCity('');
+                    }}
+                    style={{ height: 38, padding: '0 10px', borderRadius: 8, border: '1px solid var(--mb-border)', background: '#fff', fontSize: 13 }}
+                  >
+                    <option value="">Select State / UT</option>
+                    {INDIAN_STATES_AND_UTS.map((st) => (
+                      <option key={st} value={st}>
+                        {st}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    disabled={!newAddress.state}
+                    value={newAddress.city}
+                    onChange={(e) => {
+                      const nextCity = e.target.value;
+                      setNewAddress({ ...newAddress, city: nextCity });
+                      if (nextCity !== 'Other') {
+                        setCustomAddressCity('');
+                      }
+                    }}
+                    style={{ height: 38, padding: '0 10px', borderRadius: 8, border: '1px solid var(--mb-border)', background: '#fff', fontSize: 13 }}
+                  >
+                    <option value="">{newAddress.state ? 'Select City' : 'Select State first'}</option>
+                    {citiesForNewAddress.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+
+                  {newAddress.city === 'Other' && (
+                    <input
+                      type="text"
+                      placeholder="Specify your City / Town / Village"
+                      value={customAddressCity}
+                      onChange={(e) => setCustomAddressCity(e.target.value)}
+                      style={{ gridColumn: 'span 2', height: 38, padding: '0 10px', borderRadius: 8, border: '1px solid var(--mb-border)' }}
+                      required
+                    />
+                  )}
                   <input
                     type="text"
                     placeholder="Zip / Postal Code"

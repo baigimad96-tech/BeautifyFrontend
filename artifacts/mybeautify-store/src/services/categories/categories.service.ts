@@ -3,10 +3,12 @@
  */
 
 import { request } from '@/services/api/client';
+import { normalizeList } from '@/utils/array';
 import type { CategoryResponse } from '@/types/product.types';
 
 export async function fetchCategories(): Promise<CategoryResponse[]> {
-  return request<CategoryResponse[]>('/categories');
+  const res = await request<unknown>('/categories');
+  return normalizeList<CategoryResponse>(res);
 }
 
 export async function fetchCategoryById(id: number): Promise<CategoryResponse> {
