@@ -43,7 +43,7 @@ export interface AddressResponse {
 
 export interface CreateOrderPayload {
   shippingAddressId: number;
-  paymentMethod: 'COD' | 'MOCK' | string;
+  paymentMethod: 'COD' | 'CASH_ON_DELIVERY' | 'UPI' | 'NET_BANKING' | 'UPI_QR' | string;
   couponCode?: string;
 }
 

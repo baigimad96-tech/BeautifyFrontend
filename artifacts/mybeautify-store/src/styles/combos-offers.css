@@ -882,3 +882,453 @@
     opacity: 0.2;
   }
 }
+
+/* ====================================================================
+   COMBO URGENCY & INTERACTIVE ACTIONS
+   ==================================================================== */
+.combo-urgency-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #fff0d4;
+  color: #925805;
+  border: 1px solid rgba(212, 175, 99, 0.6);
+  white-space: nowrap;
+}
+
+.combo-urgency-badge.is-urgent {
+  background: #ffe4e6;
+  color: #b91c1c;
+  border-color: #fca5a5;
+  animation: pulseUrgent 2s infinite ease-in-out;
+}
+
+@keyframes pulseUrgent {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+.combo-card-actions {
+  width: 100%;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.combo-card-qty-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.combo-card-stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #d4af63;
+  border-radius: 8px;
+  background: #fffdf8;
+  overflow: hidden;
+  height: 36px;
+  flex-shrink: 0;
+}
+
+.combo-card-stepper button {
+  width: 28px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: #063b2f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.combo-card-stepper button:hover:not(:disabled) {
+  background: #f3e7c9;
+}
+
+.combo-card-stepper button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.combo-card-stepper span {
+  min-width: 22px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #063b2f;
+}
+
+.combo-card-add-btn {
+  flex: 1;
+  min-height: 36px;
+  margin-top: 0;
+}
+
+.combo-view-details-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #8a641f;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: underline;
+  margin-top: 4px;
+  align-self: flex-start;
+  transition: color 150ms ease;
+}
+
+.combo-view-details-btn:hover {
+  color: #063b2f;
+}
+
+.combo-card-clickable {
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.combo-card-clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(6, 59, 47, 0.12);
+}
+
+/* ====================================================================
+   SLIDE-OVER DRAWER MODAL (COMBO BREAKDOWN)
+   ==================================================================== */
+.combo-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 44, 35, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 1200;
+  display: flex;
+  justify-content: flex-end;
+  animation: fadeInBackdrop 200ms ease forwards;
+}
+
+@keyframes fadeInBackdrop {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.combo-drawer {
+  width: 100%;
+  max-width: 520px;
+  height: 100%;
+  background: #fffdf8;
+  box-shadow: -8px 0 32px rgba(6, 44, 35, 0.25);
+  display: flex;
+  flex-direction: column;
+  animation: slideInRight 260ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  overflow: hidden;
+  position: relative;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.combo-drawer-header {
+  padding: 16px 22px;
+  border-bottom: 1px solid #e8dec8;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #faf4e6;
+}
+
+.combo-drawer-header-title {
+  font: 700 17px var(--mb-font-serif, Georgia, serif);
+  color: #063b2f;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.combo-drawer-close {
+  border: none;
+  background: #f1e5cc;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #063b2f;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.combo-drawer-close:hover {
+  background: #e2d2ae;
+}
+
+.combo-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.combo-drawer-hero {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f1e4c9;
+  border: 1px solid #d4af63;
+  min-height: 200px;
+  max-height: 240px;
+}
+
+.combo-drawer-hero img {
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+  display: block;
+}
+
+.combo-drawer-hero .combo-offer-tag {
+  top: 12px;
+  left: 12px;
+  padding: 5px 10px;
+  font-size: 10px;
+}
+
+.combo-drawer-hero .combo-urgency-badge {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+}
+
+.combo-drawer-details h2 {
+  font: 700 24px var(--mb-font-serif, Georgia, serif);
+  color: #063b2f;
+  margin: 0 0 8px 0;
+}
+
+.combo-drawer-details p {
+  font-size: 13px;
+  color: #55665d;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.combo-breakdown-section {
+  margin-top: 6px;
+}
+
+.combo-breakdown-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #8a641f;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.combo-breakdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.combo-breakdown-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #fffcf4;
+  border: 1px solid #e8dfc9;
+  border-radius: 12px;
+}
+
+.combo-breakdown-thumb {
+  width: 54px;
+  height: 54px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #f3ebd6;
+  flex-shrink: 0;
+}
+
+.combo-breakdown-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.combo-breakdown-item-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0d362b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.combo-breakdown-item-qty {
+  font-size: 11px;
+  color: #7a827d;
+  margin-top: 2px;
+}
+
+.combo-breakdown-item-pricing {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.combo-breakdown-item-price {
+  font-size: 13px;
+  font-weight: 700;
+  color: #063b2f;
+}
+
+.combo-breakdown-item-base {
+  font-size: 11px;
+  color: #8c8880;
+  text-decoration: line-through;
+  margin-left: 4px;
+}
+
+.combo-drawer-pricing-box {
+  background: #f7eed8;
+  border: 1px solid #d4af63;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.combo-drawer-pricing-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: #4f5f56;
+}
+
+.combo-drawer-pricing-row.savings {
+  color: #8a641f;
+  font-weight: 700;
+}
+
+.combo-drawer-pricing-row.total {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #d4af63;
+  font-size: 16px;
+  font-weight: 700;
+  color: #063b2f;
+}
+
+.combo-drawer-footer {
+  padding: 16px 22px;
+  border-top: 1px solid #e8dec8;
+  background: #faf4e6;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.combo-drawer-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.combo-drawer-stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #d4af63;
+  border-radius: 9px;
+  background: #fff;
+  height: 44px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.combo-drawer-stepper button {
+  width: 36px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: #063b2f;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.combo-drawer-stepper button:hover:not(:disabled) {
+  background: #f3e7c9;
+}
+
+.combo-drawer-stepper span {
+  min-width: 32px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: #063b2f;
+}
+
+.combo-drawer-add-btn {
+  flex: 1;
+  height: 44px;
+  border: none;
+  border-radius: 9px;
+  background: #063b2f;
+  color: #fff9ea;
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background 150ms ease, transform 150ms ease;
+}
+
+.combo-drawer-add-btn:hover:not(:disabled) {
+  background: #0b5946;
+  transform: translateY(-1px);
+}
+
+.combo-drawer-add-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  .combo-drawer {
+    max-width: 100%;
+    height: 88vh;
+    border-radius: 20px 20px 0 0;
+    align-self: flex-end;
+    animation: slideInUp 260ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  @keyframes slideInUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+}

@@ -19,6 +19,7 @@ export async function fetchProducts(
   const queryParts: string[] = [];
   if (params.query?.trim()) queryParts.push(`query=${encodeURIComponent(params.query.trim())}`);
   if (params.categoryId) queryParts.push(`categoryId=${params.categoryId}`);
+  if (params.subcategoryId) queryParts.push(`subcategoryId=${params.subcategoryId}`);
   if (params.brandId) queryParts.push(`brandId=${params.brandId}`);
   if (params.featured !== undefined) queryParts.push(`featured=${params.featured}`);
   if (params.minPrice !== undefined) queryParts.push(`minPrice=${params.minPrice}`);

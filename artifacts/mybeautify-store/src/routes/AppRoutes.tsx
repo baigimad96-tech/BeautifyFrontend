@@ -4,7 +4,6 @@ import CustomerDashboard from '@/pages/shop/CustomerDashboard';
 import CombosOffersPage from '@/pages/shop/CombosOffersPage';
 import ProductDetailPage from '@/pages/products/ProductDetailPage';
 import CategoriesPage from '@/pages/shop/CategoriesPage';
-import BrandsPage from '@/pages/shop/BrandsPage';
 import AdminPage from '@/pages/admin/AdminPage';
 import AuthPage from '@/pages/auth/AuthPage';
 import ResetPasswordPage from '@/pages/auth/ResetPasswordPage';
@@ -24,6 +23,7 @@ export function AppRoutes() {
         <Route path="/" component={CustomerDashboard} />
         <Route path="/shop" component={CustomerDashboard} />
         <Route path="/combos" component={CombosOffersPage} />
+        <Route path="/combos/:slug" component={CombosOffersPage} />
         <Route path="/dashboard" component={CustomerDashboard} />
         <Route path="/account" component={CustomerDashboard} />
         <Route path="/share-referral" component={ShareReferralPage} />
@@ -36,7 +36,8 @@ export function AppRoutes() {
         <Route path="/product/:productId" component={ProductDetailPage} />
         <Route path="/product/:id" component={ProductDetailPage} />
         <Route path="/categories" component={CategoriesPage} />
-        <Route path="/brands" component={BrandsPage} />
+        <Route path="/categories/:categoryId" component={CategoriesPage} />
+        <Route path="/categories/:categoryId/:subcategoryId" component={CategoriesPage} />
         <Route path="/wishlist" component={CustomerDashboard} />
         <Route path="/cart" component={CustomerDashboard} />
         <Route path="/orders" component={MyOrdersPage} />

@@ -2,14 +2,21 @@ import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { customFetch } from '@workspace/api-client-react/custom-fetch';
-import { ArrowRight, Gem, Layers3, Package, Pencil, Plus, Sparkles, TrendingDown, Trash2 } from 'lucide-react';
+import { ArrowRight, Gem, Layers, Layers3, MessageSquare, Package, Pencil, Plus, ShoppingBag, Sparkles, Tag, TrendingDown, Trash2 } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { getJewelleryImage } from '@/lib/jewellery-images';
 import { uploadImage } from '@/services/uploads/uploads.service';
+import { fetchAdminDashboard } from '@/services/admin/dashboard.service';
+import { fetchAdminSubcategories } from '@/services/subcategories/subcategories.service';
 import { AuditLogsView } from './AuditLogsView';
 import { DeveloperToolsView } from './DeveloperToolsView';
 import { CombosOffersAdminView } from './CombosOffersAdminView';
 import { ProductRelationshipsAdminView } from './ProductRelationshipsAdminView';
+import { SubcategoriesAdminView } from './SubcategoriesAdminView';
+import { CategoryManagementAdminView } from './CategoryManagementAdminView';
+import { AdminOrdersView } from './AdminOrdersView';
+import { CouponsAdminView } from './CouponsAdminView';
+import { ReviewsAdminView } from './ReviewsAdminView';
 import '@/styles/admin.css';
 
 type AdminProduct = {
@@ -330,8 +337,19 @@ function CrudPanel<T extends { id: number }>({
 }
 
 function AdminConsole() {
-  const [section, setSection] = useState<'products' | 'categories' | 'relationships' | 'combos' | 'audit' | 'developer'>('products');
+  const [section, setSection] = useState<'products' | 'categories' | 'orders' | 'coupons' | 'reviews' | 'relationships' | 'combos' | 'audit' | 'developer'>('products');
   const [page, setPage] = useState(0);
+
+  const dashboardQuery = useQuery({
+    queryKey: ['admin-dashboard'],
+    queryFn: fetchAdminDashboard,
+  });
+
+  const subcategoriesQuery = useQuery({
+    queryKey: ['admin-subcategories-overview'],
+    queryFn: () => fetchAdminSubcategories({ page: 0, size: 1 }),
+  });
+
   const productsQuery = useQuery({
     queryKey: ['admin-products', page],
     queryFn: async () => parseList<AdminProduct>(await customFetch<unknown>(`/api/products?page=${page}&size=50&sort=createdAt,desc`)),
@@ -342,6 +360,11 @@ function AdminConsole() {
     queryFn: async () => parseList<AdminCategory>(await customFetch<unknown>('/api/categories')),
     enabled: section === 'products' || section === 'categories',
   });
+  const allSubcategoriesQuery = useQuery({
+    queryKey: ['admin-all-subcategories'],
+    queryFn: () => fetchAdminSubcategories({ size: 200 }),
+    enabled: section === 'products',
+  });
   const productFields = useMemo<FieldSpec[]>(() => [
     { key: 'name', label: 'Product name', type: 'text', required: true },
     { key: 'sku', label: 'SKU', type: 'text', required: true },
@@ -350,6 +373,7 @@ function AdminConsole() {
     { key: 'stockQuantity', label: 'Stock quantity', type: 'number', required: true, min: 0, step: '1' },
     { key: 'lowStockThreshold', label: 'Low stock threshold', type: 'number', required: true, min: 0, step: '1' },
     { key: 'categoryId', label: 'Category', type: 'select', required: true, options: (categoriesQuery.data?.items ?? []).map((category) => ({ value: String(category.id), label: category.name })) },
+    { key: 'subcategoryId', label: 'Subcategory (Optional)', type: 'select', options: [{ value: '', label: 'None (Parent category only)' }, ...(allSubcategoriesQuery.data?.content ?? []).map((sub) => ({ value: String(sub.id), label: `${sub.name} (${sub.categoryName || 'Category #' + sub.categoryId})` }))] },
     { key: 'shortDescription', label: 'Short description', type: 'textarea' },
     { key: 'description', label: 'Description', type: 'textarea', required: true },
     { key: 'imageFile', label: 'Upload image', type: 'file', accept: 'image/jpeg,image/png,image/webp', hint: 'JPEG, PNG, or WebP. Maximum file size: 5 MB. A selected file replaces the current image.' },
@@ -378,23 +402,23 @@ function AdminConsole() {
     <section className="admin-overview" aria-label="Store overview">
       <article className="admin-overview-card">
         <div className="admin-overview-icon"><Package size={19} /></div>
-        <div><span>Products in collection</span><strong>{productsQuery.data?.totalItems ?? (productsQuery.data ? products.length : '—')}</strong></div>
-        <small>{productsQuery.data ? `${activeProducts} active on this page` : 'Inventory summary'}</small>
+        <div><span>Products in collection</span><strong>{dashboardQuery.data?.totalProducts ?? productsQuery.data?.totalItems ?? (productsQuery.data ? products.length : '—')}</strong></div>
+        <small>{dashboardQuery.data ? 'Active collection inventory' : productsQuery.data ? `${activeProducts} active on this page` : 'Inventory summary'}</small>
       </article>
       <article className="admin-overview-card">
         <div className="admin-overview-icon"><Layers3 size={19} /></div>
         <div><span>Collections</span><strong>{categoriesQuery.data?.items.length ?? '—'}</strong></div>
-        <small>Product categories</small>
+        <small>Parent categories</small>
       </article>
       <article className="admin-overview-card">
-        <div className="admin-overview-icon"><Gem size={19} /></div>
-        <div><span>Featured pieces</span><strong>{productsQuery.data ? products.filter((product) => product.featured).length : '—'}</strong></div>
-        <small>{productsQuery.data ? 'From the current product page' : 'Featured collection'}</small>
+        <div className="admin-overview-icon"><Layers size={19} /></div>
+        <div><span>Subcategories</span><strong>{subcategoriesQuery.data?.totalElements ?? '—'}</strong></div>
+        <small>Curated subcategories</small>
       </article>
-      <article className={`admin-overview-card ${lowStockCount ? 'needs-attention' : ''}`}>
+      <article className={`admin-overview-card ${(dashboardQuery.data?.lowStockProducts ?? lowStockCount) ? 'needs-attention' : ''}`}>
         <div className="admin-overview-icon"><TrendingDown size={19} /></div>
-        <div><span>Low stock</span><strong>{productsQuery.data ? lowStockCount : '—'}</strong></div>
-        <small>{!productsQuery.data ? 'Stock overview' : lowStockCount ? 'Items to replenish' : 'Stock levels look healthy'}</small>
+        <div><span>Low stock</span><strong>{dashboardQuery.data?.lowStockProducts ?? (productsQuery.data ? lowStockCount : '—')}</strong></div>
+        <small>{(dashboardQuery.data?.lowStockProducts ?? lowStockCount) ? 'Items to replenish' : 'Stock levels look healthy'}</small>
       </article>
     </section>
     <nav className="admin-tabs" aria-label="Admin management sections" role="tablist">
@@ -402,6 +426,9 @@ function AdminConsole() {
         [
           { id: 'products', label: 'Products' },
           { id: 'categories', label: 'Categories' },
+          { id: 'orders', label: 'Orders' },
+          { id: 'coupons', label: 'Coupons' },
+          { id: 'reviews', label: 'Reviews' },
           { id: 'relationships', label: 'Similar products' },
           { id: 'combos', label: 'Combos & Offers' },
           { id: 'audit', label: 'Audit Logs' },
@@ -442,30 +469,23 @@ function AdminConsole() {
               <button className="button secondary small" disabled={page + 1 >= productsQuery.data.totalPages} onClick={() => setPage((current) => current + 1)}>Next</button>
             </div>}
           </>
-          : section === 'categories' && categoriesQuery.isLoading
-            ? <div className="skeleton line" />
-            : section === 'categories' && categoriesQuery.isError
-              ? <div className="error-state" role="alert"><h3>Categories could not be loaded.</h3><p>{getMessage(categoriesQuery.error)}</p><button className="button secondary" onClick={() => { void categoriesQuery.refetch(); }}>Try again</button></div>
-              : section === 'categories' && categoriesQuery.data
-                ? <CrudPanel title="Category" endpoint="/api/admin/categories" queryKey={['admin-categories']} items={categoriesQuery.data.items} fields={[
-                  { key: 'name', label: 'Category name', type: 'text', required: true },
-                  { key: 'description', label: 'Description', type: 'textarea' },
-                  { key: 'imageFile', label: 'Upload image', type: 'file', accept: 'image/jpeg,image/png,image/webp', hint: 'JPEG, PNG, or WebP. Maximum file size: 5 MB. A selected file replaces the current image.' },
-                  { key: 'active', label: 'Active', type: 'checkbox', defaultValue: true },
-                ]} columns={[
-                  { label: 'Name', render: (item) => item.name },
-                  { label: 'Description', render: (item) => item.description ?? '—' },
-                  { label: 'Status', render: (item) => item.active ? 'Active' : 'Inactive' },
-                ]} />
-                : section === 'audit'
-                  ? <AuditLogsView />
-                  : section === 'developer'
-                    ? <DeveloperToolsView />
-                      : section === 'combos'
-                        ? <CombosOffersAdminView />
-                      : section === 'relationships'
-                        ? <ProductRelationshipsAdminView />
-                      : null}
+          : section === 'categories'
+            ? <CategoryManagementAdminView />
+            : section === 'orders'
+                  ? <AdminOrdersView />
+                  : section === 'coupons'
+                    ? <CouponsAdminView />
+                    : section === 'reviews'
+                      ? <ReviewsAdminView />
+                      : section === 'audit'
+                        ? <AuditLogsView />
+                        : section === 'developer'
+                          ? <DeveloperToolsView />
+                          : section === 'combos'
+                            ? <CombosOffersAdminView />
+                            : section === 'relationships'
+                              ? <ProductRelationshipsAdminView />
+                              : null}
     <p className="admin-back"><Link href="/account">Back to account</Link></p>
   </main>;
 }

@@ -36,6 +36,7 @@ export function SiteLayout({ children }: SiteLayoutProps) {
 
   const nav = [
     ['Shop', '/shop'],
+    ['Combos & Offers', '/combos'],
     ['Categories', '/categories'],
     ['Our collection', '/#edit'],
   ];
@@ -72,7 +73,7 @@ export function SiteLayout({ children }: SiteLayoutProps) {
               href={href}
               className={location === href ? 'active' : ''}
               onClick={() => setMenu(false)}
-              data-testid={`link-nav-${label.toLowerCase().replace(' ', '-')}`}
+              data-testid={`link-nav-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
             >
               {label}
             </Link>
@@ -181,18 +182,22 @@ export function SiteLayout({ children }: SiteLayoutProps) {
             Shop
           </Link>{' '}
           &nbsp;·&nbsp;{' '}
+          <Link href="/combos" data-testid="link-footer-combos">
+            Combos &amp; Offers
+          </Link>{' '}
+          &nbsp;·&nbsp;{' '}
           <Link href="/account" data-testid="link-footer-account">
             Account
           </Link>{' '}
           &nbsp;·&nbsp;{' '}
           <Link href="/wishlist" data-testid="link-footer-wishlist">
             Saved items
-          </Link>
-          {' '}&nbsp;·&nbsp;{' '}
+          </Link>{' '}
+          &nbsp;·&nbsp;{' '}
           <Link href="/about-us" data-testid="link-footer-about-us">
             About Us
-          </Link>
-          {' '}&nbsp;·&nbsp;{' '}
+          </Link>{' '}
+          &nbsp;·&nbsp;{' '}
           <Link href="/privacy-conditions" data-testid="link-footer-privacy-conditions">
             Privacy &amp; Conditions
           </Link>

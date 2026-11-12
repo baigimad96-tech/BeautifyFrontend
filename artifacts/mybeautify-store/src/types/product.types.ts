@@ -47,6 +47,8 @@ export interface ProductResponse {
   brandName: string;
   categoryId: number;
   categoryName: string;
+  subcategoryId?: number;
+  subcategoryName?: string;
   imageUrl?: string;
   active: boolean;
   featured?: boolean;
@@ -65,6 +67,7 @@ export interface ProductResponse {
 export interface ProductFilterParams {
   query?: string;
   categoryId?: number;
+  subcategoryId?: number;
   brandId?: number;
   featured?: boolean;
   minPrice?: number;
@@ -80,6 +83,8 @@ export interface CategoryResponse {
   description?: string;
   imageUrl?: string | null;
   active: boolean;
+  subcategoriesCount?: number;
+  subcategories?: any[];
 }
 
 export interface BrandResponse {
