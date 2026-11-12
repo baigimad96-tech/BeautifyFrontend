@@ -5246,3 +5246,142 @@
     height: clamp(132px, 38vw, 178px);
   }
 }
+
+/* ====================================================================
+   COMBO PACKAGE GROUPING IN CART DRAWER & CHECKOUT
+   ==================================================================== */
+.mb-cart-combo-package {
+  border: 1px solid rgba(212, 175, 99, 0.7);
+  border-radius: 14px;
+  background: #fffdf8;
+  padding: 14px;
+  margin: 14px 0;
+  box-shadow: 0 4px 14px rgba(6, 44, 35, 0.05);
+}
+
+.mb-cart-combo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 9px;
+  border-bottom: 1px dashed #d4af63;
+  margin-bottom: 11px;
+}
+
+.mb-cart-combo-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #063b2f;
+}
+
+.mb-cart-combo-badge {
+  font-size: 10px;
+  background: #f1e4c9;
+  color: #8a641f;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.mb-cart-combo-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mb-cart-combo-item-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+.mb-cart-combo-item-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #f8f4eb;
+  flex-shrink: 0;
+  border: 1px solid #ebd8b5;
+}
+
+.mb-cart-combo-item-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #33443b;
+  font-weight: 600;
+}
+
+.mb-cart-combo-item-price {
+  font-weight: 700;
+  color: #063b2f;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.mb-cart-combo-footer {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid #f1e9d8;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #063b2f;
+}
+
+/* ====================================================================
+   DYNAMIC COUPONS IN STOREFRONT
+   ==================================================================== */
+.mb-dynamic-coupon-card {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #fffcf4;
+  border: 1px solid #d4af63;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.mb-dynamic-coupon-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(212, 175, 99, 0.15);
+}
+
+.mb-coupon-code-badge {
+  font-weight: 800;
+  font-size: 15px;
+  color: #063b2f;
+  letter-spacing: 0.05em;
+  background: #f1e4c9;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+.mb-coupon-meta {
+  font-size: 12px;
+  color: #69756e;
+  margin-top: 2px;
+}
+
+.mb-coupon-expiry {
+  font-size: 11px;
+  color: #925805;
+  margin-top: 3px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+

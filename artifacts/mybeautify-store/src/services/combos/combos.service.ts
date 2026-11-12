@@ -68,7 +68,7 @@ export async function addCustomComboToCart(items: CustomComboRequestItem[]): Pro
 }
 
 export async function removeComboGroupFromCart(comboGroupId: string): Promise<void> {
-  await request<unknown>(`/cart/combos/${encodeURIComponent(comboGroupId)}`, {
+  await request<unknown>(`/combos/cart/groups/${encodeURIComponent(comboGroupId)}`, {
     method: 'DELETE',
   });
 }

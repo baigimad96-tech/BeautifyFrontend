@@ -23,6 +23,7 @@ export type AdminProduct = {
   shade?: string;
   size?: string;
   expiryDate?: string;
+  attributes?: Record<string, string>;
 };
 
 export type AdminCategory = {

@@ -3,7 +3,8 @@ import { useLocation, Link } from 'wouter';
 import {
   MapPin,
   Truck,
-  CreditCard,
+  Smartphone,
+  Building2,
   Banknote,
   Search,
   Heart,
@@ -24,6 +25,9 @@ import {
   Lock,
   PackageCheck,
   Plus,
+  Gift,
+  RotateCcw,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   fetchCurrentUser,
@@ -42,6 +46,18 @@ import {
   type OrderResponse,
   type CouponResponse,
 } from '@/lib/api';
+import {
+  loadRazorpayScript,
+  createRazorpayOrder,
+  verifyRazorpayPayment,
+  fetchPaymentStatus,
+  initializeRazorpayCheckout,
+} from '@/services/payments/payments.service';
+import { fetchOrderById } from '@/services/orders/orders.service';
+import type {
+  RazorpayOptions,
+  RazorpayPaymentSuccessPayload,
+} from '@/types/payment.types';
 import { CustomerProfilePill, HeaderCartButton } from '@/components/common';
 import { getJewelleryImage } from '@/lib/jewellery-images';
 import { animateTrashCan } from '@/lib/cart-animations';
@@ -56,6 +72,18 @@ const formatCurrency = (val: number | undefined | null) => {
   const num = typeof val === 'number' ? val : 0;
   return `₹ ${num.toFixed(2)}`;
 };
+
+export interface PendingVerificationState {
+  userId?: number;
+  orderId: number;
+  orderNumber: string;
+  amount: number;
+  paymentMethod: 'UPI' | 'NET_BANKING';
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
+  attemptedAt: string;
+}
 
 export default function CheckoutPage() {
   const [, setLocation] = useLocation();
@@ -78,8 +106,8 @@ export default function CheckoutPage() {
   // 4. Shipping Method: standard (FREE) vs express (₹99.00)
   const [shippingMethod, setShippingMethod] = useState<'standard' | 'express'>('standard');
 
-  // 5. Payment Method: COD vs ONLINE
-  const [paymentMethod, setPaymentMethod] = useState<'COD' | 'ONLINE'>('COD');
+  // 5. Payment Method: UPI vs NET_BANKING vs COD (Cards strictly disallowed)
+  const [paymentMethod, setPaymentMethod] = useState<'UPI' | 'NET_BANKING' | 'COD'>('UPI');
 
   // 6. Coupon code & Discount
   const [couponInput, setCouponInput] = useState('');
@@ -105,15 +133,51 @@ export default function CheckoutPage() {
   const [formAddressType, setFormAddressType] = useState<'HOME' | 'WORK' | 'OTHER'>('HOME');
   const [formIsDefault, setFormIsDefault] = useState(true);
 
-  // Online Payment Simulation Modal
-  const [showOnlinePaymentModal, setShowOnlinePaymentModal] = useState(false);
-  const [selectedOnlineChannel, setSelectedOnlineChannel] = useState<'upi' | 'card' | 'wallet'>('upi');
-  const [onlineUpiId, setOnlineUpiId] = useState('');
-
-  // 8. Order Placement & Confirmation
+  // 8. Order Placement & Confirmation & Recovery
   const [submittingOrder, setSubmittingOrder] = useState(false);
+  const [paymentVerifying, setPaymentVerifying] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(false);
+  const [verificationFeedback, setVerificationFeedback] = useState<string | null>(null);
+  const [pendingVerification, setPendingVerification] = useState<PendingVerificationState | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const saved = sessionStorage.getItem('malkaz_pending_verification');
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === 'object' && parsed.orderId && parsed.razorpayPaymentId) {
+        return parsed;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  });
   const [orderError, setOrderError] = useState<string | null>(null);
   const [confirmedOrder, setConfirmedOrder] = useState<OrderResponse | null>(null);
+
+  // Keep sessionStorage in sync with pending verification state
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      if (pendingVerification) {
+        sessionStorage.setItem('malkaz_pending_verification', JSON.stringify(pendingVerification));
+      } else {
+        sessionStorage.removeItem('malkaz_pending_verification');
+      }
+    } catch (e) {
+      console.warn('Failed to update sessionStorage for pending verification:', e);
+    }
+  }, [pendingVerification]);
+
+  // Sanitize pending verification if customer account switches or doesn't match
+  useEffect(() => {
+    if (user && pendingVerification && pendingVerification.userId && pendingVerification.userId !== user.id) {
+      setPendingVerification(null);
+      try {
+        sessionStorage.removeItem('malkaz_pending_verification');
+      } catch {}
+    }
+  }, [user, pendingVerification]);
 
   // 9. Toast notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -216,6 +280,73 @@ export default function CheckoutPage() {
       setRemovingItemId(null);
     }
   };
+
+  // Remove entire combo package
+  const handleRemoveComboGroup = async (comboGroupId: string, removeButton: HTMLElement) => {
+    if (removingItemId !== null) return;
+    setRemovingItemId(-1);
+    let restoreTrashIcon = () => {};
+    try {
+      restoreTrashIcon = await animateTrashCan(removeButton);
+      await removeComboGroupFromCart(comboGroupId);
+      await loadCartData();
+      showToast('Combo package removed from cart.');
+    } catch (err) {
+      restoreTrashIcon();
+      console.error('Failed to remove combo:', err);
+      showToast('Could not remove combo package.');
+    } finally {
+      setRemovingItemId(null);
+    }
+  };
+
+  // Grouped cart entries for visual packaging
+  const groupedCartEntries = useMemo(() => {
+    if (!cart?.items) return [];
+    type GroupEntry =
+      | { type: 'regular'; item: (typeof cart.items)[number] }
+      | {
+          type: 'combo';
+          comboGroupId: string;
+          comboName: string;
+          comboType?: string | null;
+          items: typeof cart.items;
+          totalPrice: number;
+        };
+
+    const result: GroupEntry[] = [];
+    const comboMap = new Map<string, {
+      type: 'combo';
+      comboGroupId: string;
+      comboName: string;
+      comboType?: string | null;
+      items: typeof cart.items;
+      totalPrice: number;
+    }>();
+
+    for (const item of cart.items) {
+      if (item.comboGroupId) {
+        let entry = comboMap.get(item.comboGroupId);
+        if (!entry) {
+          entry = {
+            type: 'combo',
+            comboGroupId: item.comboGroupId,
+            comboName: item.comboName || 'Curated Combo Set',
+            comboType: item.comboType,
+            items: [],
+            totalPrice: 0,
+          };
+          comboMap.set(item.comboGroupId, entry);
+          result.push(entry);
+        }
+        entry.items.push(item);
+        entry.totalPrice += (item.price || 0) * (item.quantity || 1);
+      } else {
+        result.push({ type: 'regular', item });
+      }
+    }
+    return result;
+  }, [cart?.items]);
 
   // Apply Coupon
   const handleApplyCoupon = async (e: React.FormEvent) => {
@@ -328,12 +459,8 @@ export default function CheckoutPage() {
     }
   };
 
-  // Totals calculations
+  // Totals calculations aligned with backend OrderService
   const subtotal = useMemo(() => cart?.subtotal || 0, [cart]);
-
-  const shippingFee = useMemo(() => {
-    return shippingMethod === 'express' ? 99 : 0;
-  }, [shippingMethod]);
 
   const discountAmount = useMemo(() => {
     if (!appliedCoupon) return 0;
@@ -344,9 +471,26 @@ export default function CheckoutPage() {
     return Math.min(appliedCoupon.discountValue, subtotal);
   }, [appliedCoupon, subtotal]);
 
+  const shippingFee = useMemo(() => {
+    const baseShipping = Number(import.meta.env.VITE_CHECKOUT_SHIPPING ?? 8.99);
+    return shippingMethod === 'express' ? baseShipping + 90 : baseShipping;
+  }, [shippingMethod]);
+
+  const taxRate = useMemo(() => {
+    return Number(import.meta.env.VITE_CHECKOUT_TAX_RATE ?? 0.08);
+  }, []);
+
+  const taxableAmount = useMemo(() => {
+    return Math.max(0, subtotal - discountAmount);
+  }, [subtotal, discountAmount]);
+
+  const taxAmount = useMemo(() => {
+    return Math.round(taxableAmount * taxRate * 100) / 100;
+  }, [taxableAmount, taxRate]);
+
   const finalTotal = useMemo(() => {
-    return Math.max(0, subtotal - discountAmount + shippingFee);
-  }, [subtotal, discountAmount, shippingFee]);
+    return Math.round((taxableAmount + shippingFee + taxAmount) * 100) / 100;
+  }, [taxableAmount, shippingFee, taxAmount]);
 
   // Order Submission Handler
   const handleProceedOrder = async () => {
@@ -361,40 +505,278 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (paymentMethod === 'ONLINE') {
-      // Open Online Payment modal to allow secure mock session
-      setShowOnlinePaymentModal(true);
+    if (submittingOrder) {
+      return; // Prevent duplicate payment trigger
+    }
+
+    // 1. Cash on Delivery (COD)
+    if (paymentMethod === 'COD') {
+      await executeCodOrderPlacement();
       return;
     }
 
-    // Place COD Order directly
-    executeOrderPlacement('COD');
+    // 2. Online Razorpay Checkout (UPI or Net Banking)
+    await executeRazorpayOnlinePayment(paymentMethod);
   };
 
-  const executeOrderPlacement = async (method: 'COD' | 'MOCK') => {
+  const executeCodOrderPlacement = async () => {
     if (!selectedAddress) return;
     setSubmittingOrder(true);
+    setPaymentVerifying(false);
     setOrderError(null);
 
     try {
       const response = await createOrder({
         shippingAddressId: selectedAddress.id,
-        paymentMethod: method,
+        paymentMethod: 'COD',
         couponCode: appliedCoupon?.code,
       });
 
       setConfirmedOrder(response);
-      setShowOnlinePaymentModal(false);
-      // Cart will have been cleared on backend by checkout
       await loadCartData();
       showToast('Order placed successfully!');
     } catch (err) {
-      console.error('Order creation failed:', err);
+      console.error('COD order creation failed:', err);
       const msg = err instanceof Error ? err.message : 'Could not place order. Please try again.';
       setOrderError(msg);
       showToast(msg);
     } finally {
       setSubmittingOrder(false);
+    }
+  };
+
+  // Step D: Cryptographic Verification Handler & Recovery Method
+  const executeVerification = async (data: PendingVerificationState) => {
+    if (paymentVerifying) return; // Prevent concurrent calls
+    setPaymentVerifying(true);
+    setOrderError(null);
+    setVerificationFeedback('Verifying payment signature with MALKAZ server…');
+
+    try {
+      const verifyResp = await verifyRazorpayPayment({
+        orderId: data.orderId,
+        razorpayOrderId: data.razorpayOrderId,
+        razorpayPaymentId: data.razorpayPaymentId,
+        razorpaySignature: data.razorpaySignature,
+      });
+
+      if (verifyResp.paymentStatus === 'SUCCESS' || (verifyResp.message && verifyResp.message.toLowerCase().includes('verified'))) {
+        setPendingVerification(null);
+        setVerificationFeedback(null);
+        try {
+          sessionStorage.removeItem('malkaz_pending_verification');
+        } catch {}
+
+        let finalizedOrder: OrderResponse | null = null;
+        try {
+          finalizedOrder = await fetchOrderById(data.orderId);
+        } catch {
+          finalizedOrder = {
+            id: data.orderId,
+            orderNumber: data.orderNumber,
+            totalAmount: data.amount,
+            paymentStatus: 'SUCCESS',
+            orderStatus: 'CONFIRMED',
+            paymentMethod: data.paymentMethod,
+            items: [],
+            createdAt: new Date().toISOString(),
+          };
+        }
+
+        setConfirmedOrder(finalizedOrder);
+        await loadCartData();
+        showToast('Payment verified and order confirmed successfully!');
+      } else {
+        const msg = verifyResp.message || 'Payment verification could not be confirmed.';
+        setVerificationFeedback(msg);
+        setOrderError(msg);
+        showToast(msg);
+      }
+    } catch (verifyErr) {
+      console.error('Payment verification failed:', verifyErr);
+      const msg = verifyErr instanceof Error ? verifyErr.message : 'Server connection interrupted.';
+      const detailedMsg = `Payment authorization received at Razorpay (Payment ID: ${data.razorpayPaymentId}), but server verification was interrupted: ${msg}. You can click "Retry Verification" or "Check Payment Status" below.`;
+      setVerificationFeedback(detailedMsg);
+      setOrderError(detailedMsg);
+      showToast('Verification interrupted. You can retry verification or check status.');
+    } finally {
+      setSubmittingOrder(false);
+      setPaymentVerifying(false);
+    }
+  };
+
+  // Step E: Check Payment Status via GET /api/payments/{orderId}
+  const handleCheckPaymentStatus = async (orderId: number) => {
+    if (checkingStatus) return; // Prevent concurrent status checks
+    setCheckingStatus(true);
+    setVerificationFeedback('Checking latest payment and order status with server…');
+
+    try {
+      const statusResp = await fetchPaymentStatus(orderId);
+
+      if (statusResp.paymentStatus === 'SUCCESS') {
+        setPendingVerification(null);
+        setVerificationFeedback(null);
+        setOrderError(null);
+        try {
+          sessionStorage.removeItem('malkaz_pending_verification');
+        } catch {}
+
+        let finalizedOrder: OrderResponse | null = null;
+        try {
+          finalizedOrder = await fetchOrderById(orderId);
+        } catch {
+          finalizedOrder = {
+            id: orderId,
+            orderNumber: statusResp.orderNumber || `ORD-${orderId}`,
+            totalAmount: statusResp.amount || 0,
+            paymentStatus: 'SUCCESS',
+            orderStatus: 'CONFIRMED',
+            paymentMethod: (statusResp.paymentMethod as any) || 'UPI',
+            items: [],
+            createdAt: new Date().toISOString(),
+          };
+        }
+
+        setConfirmedOrder(finalizedOrder);
+        await loadCartData();
+        showToast('Payment verified via server status reconciliation!');
+      } else if (statusResp.paymentStatus === 'PENDING' || statusResp.paymentStatus === 'AUTHORIZED') {
+        const msg = `Payment is currently ${statusResp.paymentStatus} on the server. If your account was debited, our background webhook will reconcile it shortly.`;
+        setVerificationFeedback(msg);
+        showToast(msg);
+      } else if (statusResp.paymentStatus === 'FAILED') {
+        setPendingVerification(null);
+        try {
+          sessionStorage.removeItem('malkaz_pending_verification');
+        } catch {}
+        const reason = statusResp.failureReason || 'Payment authorization was declined or failed.';
+        const msg = `Payment failed: ${reason}. You may select a payment method and try placing your order again.`;
+        setVerificationFeedback(null);
+        setOrderError(msg);
+        showToast(msg);
+      } else {
+        const msg = `Current payment status: ${statusResp.paymentStatus}.`;
+        setVerificationFeedback(msg);
+      }
+    } catch (err) {
+      console.error('Failed to check payment status:', err);
+      const msg = err instanceof Error ? err.message : 'Unable to check status at this moment.';
+      setVerificationFeedback(`Failed to check payment status: ${msg}. Please try again.`);
+      showToast('Could not fetch payment status.');
+    } finally {
+      setCheckingStatus(false);
+    }
+  };
+
+  const executeRazorpayOnlinePayment = async (selectedMethod: 'UPI' | 'NET_BANKING') => {
+    if (!selectedAddress) return;
+    setSubmittingOrder(true);
+    setPaymentVerifying(false);
+    setOrderError(null);
+
+    try {
+      // Step A: Load official Razorpay Checkout SDK
+      await loadRazorpayScript();
+
+      // Step B: Create internal pending order & Razorpay order on backend
+      const orderResp = await createRazorpayOrder({
+        shippingAddressId: selectedAddress.id,
+        paymentMethod: selectedMethod,
+        couponCode: appliedCoupon?.code,
+      });
+
+      // Step C: Configure Razorpay Checkout modal with Strict Instrument Isolation
+      const options: RazorpayOptions = {
+        key: orderResp.razorpayKeyId,
+        amount: orderResp.amountInPaise,
+        currency: orderResp.currency || 'INR',
+        name: orderResp.companyName || 'MALKAZ Luxury Jewellery',
+        description: `Order #${orderResp.orderNumber}`,
+        order_id: orderResp.razorpayOrderId,
+        prefill: {
+          name: orderResp.customerName || selectedAddress.fullName || '',
+          email: orderResp.customerEmail || user?.email || '',
+          contact: orderResp.customerPhone || selectedAddress.phoneNumber || '',
+        },
+        theme: {
+          color: orderResp.themeColor || '#0A3B2C',
+        },
+        modal: {
+          ondismiss: () => {
+            setSubmittingOrder(false);
+            setPaymentVerifying(false);
+            setOrderError('Payment was not completed. Your jewellery checkout details are preserved and can be safely completed whenever you are ready.');
+            showToast('Payment window closed.');
+          },
+          escape: true,
+          backdropclose: false,
+        },
+        config: {
+          display: {
+            // Strict Instrument Isolation: Expose ONLY the selected payment method.
+            // When UPI is selected: show ONLY UPI block.
+            // When Net Banking is selected: show ONLY Net Banking block.
+            // Cards are completely excluded.
+            blocks:
+              selectedMethod === 'UPI'
+                ? {
+                    upi: {
+                      name: 'Pay via UPI',
+                      instruments: [{ method: 'upi' }],
+                    },
+                  }
+                : {
+                    netbanking: {
+                      name: 'Net Banking',
+                      instruments: [{ method: 'netbanking' }],
+                    },
+                  },
+            sequence: selectedMethod === 'UPI' ? ['block.upi'] : ['block.netbanking'],
+            preferences: {
+              show_default_blocks: false,
+            },
+          },
+        },
+        handler: async (paymentResponse: RazorpayPaymentSuccessPayload) => {
+          // Immediately preserve payment authorization in state and sessionStorage
+          const verificationData: PendingVerificationState = {
+            userId: user?.id,
+            orderId: orderResp.orderId,
+            orderNumber: orderResp.orderNumber,
+            amount: orderResp.amount,
+            paymentMethod: selectedMethod,
+            razorpayOrderId: paymentResponse.razorpay_order_id,
+            razorpayPaymentId: paymentResponse.razorpay_payment_id,
+            razorpaySignature: paymentResponse.razorpay_signature,
+            attemptedAt: new Date().toISOString(),
+          };
+          setPendingVerification(verificationData);
+
+          // Execute backend cryptographic verification
+          await executeVerification(verificationData);
+        },
+      };
+
+      const razorpayInstance = initializeRazorpayCheckout(options);
+
+      razorpayInstance.on('payment.failed', (failureResponse: any) => {
+        console.warn('Razorpay payment failed:', failureResponse);
+        const reason = failureResponse?.error?.description || failureResponse?.error?.reason || 'Payment failed at gateway.';
+        setOrderError(`Payment failed: ${reason}. Please try again or select another payment method.`);
+        showToast(`Payment failed: ${reason}`);
+        setSubmittingOrder(false);
+        setPaymentVerifying(false);
+      });
+
+      razorpayInstance.open();
+    } catch (err) {
+      console.error('Online checkout initiation failed:', err);
+      const msg = err instanceof Error ? err.message : 'Failed to initiate payment.';
+      setOrderError(msg);
+      showToast(msg);
+      setSubmittingOrder(false);
+      setPaymentVerifying(false);
     }
   };
 
@@ -552,7 +934,7 @@ export default function CheckoutPage() {
           {/* Step 4: Payment */}
           <div className="mb-checkout-step">
             <div className="mb-checkout-step-circle pending">
-              <CreditCard size={17} />
+              <ShieldCheck size={17} />
             </div>
             <span className="mb-checkout-step-label">Payment</span>
           </div>
@@ -685,13 +1067,71 @@ export default function CheckoutPage() {
           <div className="mb-checkout-card">
             <div className="mb-checkout-card-header">
               <div className="mb-checkout-card-title-group">
-                <CreditCard size={22} className="mb-checkout-card-icon" />
+                <ShieldCheck size={22} className="mb-checkout-card-icon" />
                 <h2 className="mb-checkout-card-title">Payment Method</h2>
               </div>
             </div>
 
-            <div className="mb-checkout-payment-grid">
-              {/* Option A: Cash on Delivery (COD) */}
+            <div className="mb-checkout-payment-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+              {/* Option A: UPI (Google Pay, PhonePe, Paytm, BHIM) */}
+              <div
+                className={`mb-checkout-payment-card ${paymentMethod === 'UPI' ? 'selected' : ''}`}
+                onClick={() => setPaymentMethod('UPI')}
+                role="radio"
+                aria-checked={paymentMethod === 'UPI'}
+                tabIndex={0}
+              >
+                <div className="mb-checkout-payment-card-top">
+                  <div className="mb-checkout-radio-circle" style={{ marginTop: 2 }}>
+                    {paymentMethod === 'UPI' && <div className="mb-checkout-radio-dot" />}
+                  </div>
+                  <Smartphone size={22} style={{ color: '#063B2F', flexShrink: 0 }} />
+                  <div className="mb-checkout-payment-card-details">
+                    <span className="mb-checkout-payment-title">UPI</span>
+                    <span className="mb-checkout-payment-desc">
+                      Pay instantly with Google Pay, PhonePe, Paytm, BHIM or any UPI App
+                    </span>
+                    <div className="mb-checkout-badges-row">
+                      <span className="mb-checkout-badge-pill">GPay</span>
+                      <span className="mb-checkout-badge-pill">PhonePe</span>
+                      <span className="mb-checkout-badge-pill">Paytm</span>
+                      <span className="mb-checkout-badge-pill">BHIM</span>
+                      <span className="mb-checkout-badge-pill">UPI</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Option B: Net Banking */}
+              <div
+                className={`mb-checkout-payment-card ${paymentMethod === 'NET_BANKING' ? 'selected' : ''}`}
+                onClick={() => setPaymentMethod('NET_BANKING')}
+                role="radio"
+                aria-checked={paymentMethod === 'NET_BANKING'}
+                tabIndex={0}
+              >
+                <div className="mb-checkout-payment-card-top">
+                  <div className="mb-checkout-radio-circle" style={{ marginTop: 2 }}>
+                    {paymentMethod === 'NET_BANKING' && <div className="mb-checkout-radio-dot" />}
+                  </div>
+                  <Building2 size={22} style={{ color: '#063B2F', flexShrink: 0 }} />
+                  <div className="mb-checkout-payment-card-details">
+                    <span className="mb-checkout-payment-title">Net Banking</span>
+                    <span className="mb-checkout-payment-desc">
+                      Direct secure transfer via SBI, HDFC, ICICI, Axis &amp; all Indian banks
+                    </span>
+                    <div className="mb-checkout-badges-row">
+                      <span className="mb-checkout-badge-pill">HDFC</span>
+                      <span className="mb-checkout-badge-pill">ICICI</span>
+                      <span className="mb-checkout-badge-pill">SBI</span>
+                      <span className="mb-checkout-badge-pill">Axis</span>
+                      <span className="mb-checkout-badge-pill">All Banks</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Option C: Cash on Delivery (COD) */}
               <div
                 className={`mb-checkout-payment-card ${paymentMethod === 'COD' ? 'selected' : ''}`}
                 onClick={() => setPaymentMethod('COD')}
@@ -706,40 +1146,117 @@ export default function CheckoutPage() {
                   <Banknote size={22} style={{ color: '#063B2F', flexShrink: 0 }} />
                   <div className="mb-checkout-payment-card-details">
                     <span className="mb-checkout-payment-title">Cash on Delivery (COD)</span>
-                    <span className="mb-checkout-payment-desc">Pay when you receive your order</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Option B: Online Payment */}
-              <div
-                className={`mb-checkout-payment-card ${paymentMethod === 'ONLINE' ? 'selected' : ''}`}
-                onClick={() => setPaymentMethod('ONLINE')}
-                role="radio"
-                aria-checked={paymentMethod === 'ONLINE'}
-                tabIndex={0}
-              >
-                <div className="mb-checkout-payment-card-top">
-                  <div className="mb-checkout-radio-circle" style={{ marginTop: 2 }}>
-                    {paymentMethod === 'ONLINE' && <div className="mb-checkout-radio-dot" />}
-                  </div>
-                  <CreditCard size={22} style={{ color: '#063B2F', flexShrink: 0 }} />
-                  <div className="mb-checkout-payment-card-details">
-                    <span className="mb-checkout-payment-title">Online Payment</span>
-                    <span className="mb-checkout-payment-desc">
-                      Pay securely via UPI, Cards, Wallets &amp; More
-                    </span>
+                    <span className="mb-checkout-payment-desc">Pay with cash when you receive your jewellery order</span>
                     <div className="mb-checkout-badges-row">
-                      <span className="mb-checkout-badge-pill">UPI</span>
-                      <span className="mb-checkout-badge-pill">VISA</span>
-                      <span className="mb-checkout-badge-pill">MC</span>
-                      <span className="mb-checkout-badge-pill">RuPay</span>
+                      <span className="mb-checkout-badge-pill">Pay on Delivery</span>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Recovery / Retry Verification Card */}
+          {pendingVerification && (!pendingVerification.userId || pendingVerification.userId === user?.id) && (
+            <div
+              style={{
+                background: '#FFFBEB',
+                border: '1.5px solid #FCD34D',
+                borderRadius: 14,
+                padding: '16px 20px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+                boxShadow: '0 2px 8px rgba(217, 119, 6, 0.08)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <ShieldCheck size={24} style={{ color: '#D97706', flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontWeight: 700, color: '#92400E', fontSize: 15 }}>
+                    Payment Verification Needed
+                  </div>
+                  <div style={{ fontSize: 13, color: '#B45309', marginTop: 2 }}>
+                    Authorization received for Order #{pendingVerification.orderNumber} ({formatCurrency(pendingVerification.amount)}) • Payment ID: <strong>{pendingVerification.razorpayPaymentId}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {verificationFeedback && (
+                <div style={{ fontSize: 13, color: '#78350F', background: '#FEF3C7', padding: '10px 14px', borderRadius: 8, lineHeight: 1.4 }}>
+                  {verificationFeedback}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => executeVerification(pendingVerification)}
+                  disabled={paymentVerifying || checkingStatus}
+                  style={{
+                    flex: '1 1 200px',
+                    padding: '10px 16px',
+                    fontSize: 13.5,
+                    background: '#063B2F',
+                    color: '#FFF',
+                    border: 'none',
+                    borderRadius: 8,
+                    fontWeight: 600,
+                    cursor: paymentVerifying || checkingStatus ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                  }}
+                >
+                  {paymentVerifying ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Verifying with Server…</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck size={16} />
+                      <span>Retry Payment Verification</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleCheckPaymentStatus(pendingVerification.orderId)}
+                  disabled={paymentVerifying || checkingStatus}
+                  style={{
+                    flex: '1 1 200px',
+                    padding: '10px 16px',
+                    fontSize: 13.5,
+                    background: '#FFFFFF',
+                    color: '#063B2F',
+                    border: '1.5px solid #063B2F',
+                    borderRadius: 8,
+                    fontWeight: 600,
+                    cursor: paymentVerifying || checkingStatus ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                  }}
+                >
+                  {checkingStatus ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Checking Status…</span>
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw size={16} />
+                      <span>Check Payment Status</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Error Message */}
           {orderError && (
@@ -758,27 +1275,39 @@ export default function CheckoutPage() {
           )}
 
           {/* Primary Action Button */}
-          <button
-            type="button"
-            className="mb-checkout-submit-btn"
-            onClick={handleProceedOrder}
-            disabled={submittingOrder || !cart || (cart.items || []).length === 0}
-          >
-            {submittingOrder ? (
-              <>
-                <Loader2 size={18} className="animate-spin" />
-                <span>Processing Order…</span>
-              </>
-            ) : (
-              <>
-                <ShieldCheck size={20} />
-                <span>
-                  {paymentMethod === 'COD' ? 'Place Order (COD)' : 'Continue to Payment'}
-                </span>
-                <ArrowRight size={18} />
-              </>
-            )}
-          </button>
+          {(() => {
+            const hasActivePendingVerification = !!pendingVerification && (!pendingVerification.userId || pendingVerification.userId === user?.id);
+            return (
+              <button
+                type="button"
+                className="mb-checkout-submit-btn"
+                onClick={handleProceedOrder}
+                disabled={submittingOrder || paymentVerifying || checkingStatus || hasActivePendingVerification || !cart || (cart.items || []).length === 0}
+              >
+                {submittingOrder ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    <span>{paymentVerifying ? 'Verifying Payment with MALKAZ Server…' : 'Processing Payment…'}</span>
+                  </>
+                ) : hasActivePendingVerification ? (
+                  <>
+                    <ShieldCheck size={20} />
+                    <span>Verification Pending — Use Actions Above</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck size={20} />
+                    <span>
+                      {paymentMethod === 'COD'
+                        ? 'Place Order (COD)'
+                        : `Pay ${formatCurrency(finalTotal)} via ${paymentMethod === 'UPI' ? 'UPI' : 'Net Banking'}`}
+                    </span>
+                    <ArrowRight size={18} />
+                  </>
+                )}
+              </button>
+            );
+          })()}
 
           {/* Back link */}
           <div>
@@ -833,7 +1362,61 @@ export default function CheckoutPage() {
               </div>
             ) : (
               <div className="mb-checkout-items-list">
-                {cart.items.map((item) => {
+                {groupedCartEntries.map((entry) => {
+                  if (entry.type === 'combo') {
+                    return (
+                      <div key={entry.comboGroupId} className="mb-checkout-combo-package">
+                        <div className="mb-checkout-combo-header">
+                          <div className="mb-checkout-combo-title">
+                            <Gift size={16} color="#063B2F" />
+                            <span>🎁 Combo Package: {entry.comboName}</span>
+                            <span className="mb-checkout-combo-badge">({entry.items.length} items)</span>
+                          </div>
+                          <button
+                            type="button"
+                            className="mb-checkout-item-remove-btn"
+                            onClick={(event) => {
+                              void handleRemoveComboGroup(entry.comboGroupId, event.currentTarget);
+                            }}
+                            disabled={removingItemId !== null}
+                            title={`Remove ${entry.comboName} from cart`}
+                            aria-label={`Remove ${entry.comboName} from cart`}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                        <div className="mb-checkout-combo-items">
+                          {entry.items.map((cItem) => {
+                            const imgSrc = getProductImage(cItem.productId, cItem.imageUrl, cItem.productName);
+                            return (
+                              <div key={cItem.id} className="mb-checkout-combo-item-row">
+                                <img
+                                  src={imgSrc}
+                                  alt={cItem.productName}
+                                  className="mb-checkout-combo-item-thumb"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = getProductImage(cItem.productId, undefined, cItem.productName);
+                                  }}
+                                />
+                                <div className="mb-checkout-combo-item-name">
+                                  {cItem.productName} {cItem.quantity > 1 ? `× ${cItem.quantity}` : ''}
+                                </div>
+                                <div className="mb-checkout-combo-item-price">
+                                  {formatCurrency(cItem.price * cItem.quantity)}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="mb-checkout-combo-footer">
+                          <span>Package Price</span>
+                          <span>{formatCurrency(entry.totalPrice)}</span>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  const item = entry.item;
                   const imgSrc = getProductImage(item.productId, item.imageUrl, item.productName);
                   return (
                     <div key={item.id} className="mb-checkout-item-row">
@@ -846,9 +1429,6 @@ export default function CheckoutPage() {
                         }}
                       />
                       <div className="mb-checkout-item-details">
-                        {item.comboGroupId && (
-                          <span className="mb-checkout-item-combo">{item.comboName || 'Combo offer'}</span>
-                        )}
                         <span className="mb-checkout-item-title">{item.productName}</span>
                         <span className="mb-checkout-item-qty">Qty: {item.quantity}</span>
                         <span className="mb-checkout-item-price">{formatCurrency(item.price)}</span>
@@ -860,8 +1440,8 @@ export default function CheckoutPage() {
                           void handleRemoveItem(item.id, event.currentTarget);
                         }}
                         disabled={removingItemId !== null}
-                        title={item.comboGroupId ? `Remove ${item.comboName || 'combo'}` : 'Remove item'}
-                        aria-label={item.comboGroupId ? `Remove ${item.comboName || 'combo'} from cart` : 'Remove item'}
+                        title={`Remove ${item.productName}`}
+                        aria-label={`Remove ${item.productName} from cart`}
                       >
                         <Trash2 size={16} />
                       </button>
@@ -880,12 +1460,13 @@ export default function CheckoutPage() {
             </div>
 
             <div className="mb-checkout-price-row">
-              <span>Shipping</span>
-              {shippingFee === 0 ? (
-                <span className="mb-checkout-price-free">FREE</span>
-              ) : (
-                <span className="mb-checkout-price-val">₹ 99.00</span>
-              )}
+              <span>Shipping ({shippingMethod === 'express' ? 'Express' : 'Standard'})</span>
+              <span className="mb-checkout-price-val">{formatCurrency(shippingFee)}</span>
+            </div>
+
+            <div className="mb-checkout-price-row">
+              <span>Estimated Taxes (GST {Math.round(taxRate * 100)}%)</span>
+              <span className="mb-checkout-price-val">{formatCurrency(taxAmount)}</span>
             </div>
 
             {discountAmount > 0 && (
@@ -1299,184 +1880,7 @@ export default function CheckoutPage() {
       )}
 
       {/* ====================================================================
-          MODAL 2: ONLINE PAYMENT GATEWAY DIALOG
-          - Connects to Spring Boot backend order creation & payment gateway
-          ==================================================================== */}
-      {showOnlinePaymentModal && (
-        <div className="mb-checkout-modal-backdrop" onClick={() => setShowOnlinePaymentModal(false)}>
-          <div
-            className="mb-checkout-modal-card"
-            onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: 460 }}
-          >
-            <div className="mb-checkout-modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <ShieldCheck size={22} style={{ color: '#063B2F' }} />
-                <h3 className="mb-checkout-modal-title">Complete Payment</h3>
-              </div>
-              <button
-                type="button"
-                className="mb-checkout-modal-close"
-                onClick={() => setShowOnlinePaymentModal(false)}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div style={{ background: '#FFF1F5', borderRadius: 12, padding: 16, border: '1px solid #F5D3DC' }}>
-              <div style={{ fontSize: 13, color: '#7A4B58' }}>Payable Amount</div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: '#063B2F', marginTop: 2 }}>
-                {formatCurrency(finalTotal)}
-              </div>
-              <div style={{ fontSize: 12, color: '#633240', marginTop: 4 }}>
-                Deliver to: <strong>{selectedAddress?.fullName}</strong> ({selectedAddress?.city})
-              </div>
-            </div>
-
-            {/* Payment channel tabs */}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                type="button"
-                onClick={() => setSelectedOnlineChannel('upi')}
-                style={{
-                  flex: 1,
-                  padding: '8px 12px',
-                  borderRadius: 8,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  border: selectedOnlineChannel === 'upi' ? '2px solid #063B2F' : '1px solid #E8DEC8',
-                  background: selectedOnlineChannel === 'upi' ? '#FFF3F6' : '#FFFFFF',
-                  color: selectedOnlineChannel === 'upi' ? '#063B2F' : '#123A30',
-                  cursor: 'pointer',
-                }}
-              >
-                UPI / QR
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedOnlineChannel('card')}
-                style={{
-                  flex: 1,
-                  padding: '8px 12px',
-                  borderRadius: 8,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  border: selectedOnlineChannel === 'card' ? '2px solid #063B2F' : '1px solid #E8DEC8',
-                  background: selectedOnlineChannel === 'card' ? '#FFF3F6' : '#FFFFFF',
-                  color: selectedOnlineChannel === 'card' ? '#063B2F' : '#123A30',
-                  cursor: 'pointer',
-                }}
-              >
-                Cards
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedOnlineChannel('wallet')}
-                style={{
-                  flex: 1,
-                  padding: '8px 12px',
-                  borderRadius: 8,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  border: selectedOnlineChannel === 'wallet' ? '2px solid #063B2F' : '1px solid #E8DEC8',
-                  background: selectedOnlineChannel === 'wallet' ? '#FFF3F6' : '#FFFFFF',
-                  color: selectedOnlineChannel === 'wallet' ? '#063B2F' : '#123A30',
-                  cursor: 'pointer',
-                }}
-              >
-                Net Banking
-              </button>
-            </div>
-
-            {/* Selected Channel Input */}
-            {selectedOnlineChannel === 'upi' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <label className="mb-checkout-label">Enter UPI ID</label>
-                <input
-                  type="text"
-                  className="mb-checkout-input"
-                  placeholder="e.g. yourname@okhdfcbank"
-                  value={onlineUpiId}
-                  onChange={(e) => setOnlineUpiId(e.target.value)}
-                />
-                <span style={{ fontSize: 12, color: '#7A4B58' }}>
-                  Supported: Google Pay, PhonePe, Paytm, BHIM, etc.
-                </span>
-              </div>
-            )}
-
-            {selectedOnlineChannel === 'card' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div className="mb-checkout-field">
-                  <label className="mb-checkout-label">Card Number</label>
-                  <input
-                    type="text"
-                    className="mb-checkout-input"
-                    placeholder="•••• •••• •••• 4242"
-                    defaultValue="4242 •••• •••• 4242"
-                  />
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <div className="mb-checkout-field">
-                    <label className="mb-checkout-label">Expiry</label>
-                    <input type="text" className="mb-checkout-input" placeholder="MM/YY" defaultValue="12/28" />
-                  </div>
-                  <div className="mb-checkout-field">
-                    <label className="mb-checkout-label">CVV</label>
-                    <input type="password" className="mb-checkout-input" placeholder="•••" defaultValue="123" />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {selectedOnlineChannel === 'wallet' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <label className="mb-checkout-label">Select Bank</label>
-                <select className="mb-checkout-input" defaultValue="HDFC">
-                  <option value="HDFC">HDFC Bank</option>
-                  <option value="ICICI">ICICI Bank</option>
-                  <option value="SBI">State Bank of India</option>
-                  <option value="AXIS">Axis Bank</option>
-                </select>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#15803D', background: '#F0FDF4', padding: '8px 12px', borderRadius: 8 }}>
-              <Lock size={14} />
-              <span>256-bit encrypted secure checkout connection</span>
-            </div>
-
-            <div className="mb-checkout-modal-actions">
-              <button
-                type="button"
-                className="mb-checkout-btn-cancel"
-                onClick={() => setShowOnlinePaymentModal(false)}
-                disabled={submittingOrder}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="mb-checkout-btn-primary"
-                onClick={() => executeOrderPlacement('MOCK')}
-                disabled={submittingOrder}
-              >
-                {submittingOrder ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    <span>Verifying Payment…</span>
-                  </>
-                ) : (
-                  <span>Authorize &amp; Pay {formatCurrency(finalTotal)}</span>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ====================================================================
-          MODAL 3: ORDER SUCCESS CONFIRMATION
+          ORDER SUCCESS CONFIRMATION MODAL
           - Direct link to My Orders page
           ==================================================================== */}
       {confirmedOrder && (
@@ -1530,7 +1934,13 @@ export default function CheckoutPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: '#7A4B58' }}>Payment Method:</span>
                 <strong style={{ color: '#123A30' }}>
-                  {confirmedOrder.paymentMethod === 'COD' ? 'Cash on Delivery (COD)' : 'Online Payment'}
+                  {confirmedOrder.paymentMethod === 'COD'
+                    ? 'Cash on Delivery (COD)'
+                    : confirmedOrder.paymentMethod === 'UPI'
+                      ? 'UPI (Razorpay Verified)'
+                      : confirmedOrder.paymentMethod === 'NET_BANKING'
+                        ? 'Net Banking (Razorpay Verified)'
+                        : 'Online Payment (Razorpay Verified)'}
                 </strong>
               </div>
 

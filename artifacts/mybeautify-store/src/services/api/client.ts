@@ -1,6 +1,6 @@
 /**
  * Core HTTP Request Client for Spring Boot API backend
- * Context path: /api (proxied via Vite server to http://localhost:8080/api)
+ * Context path: /api (with HttpOnly Cookie support & silent background refresh)
  */
 
 import { STORAGE_KEYS } from '@/constants';
@@ -28,7 +28,6 @@ export function buildApiUrl(endpoint: string): string {
   const baseUrl = getApiBaseUrl();
   let path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
 
-  // If baseUrl already ends with /api and path starts with /api/, strip the duplicate /api
   if (baseUrl.endsWith('/api') && (path === '/api' || path.startsWith('/api/'))) {
     path = path.slice(4) || '/';
   }
@@ -36,15 +35,15 @@ export function buildApiUrl(endpoint: string): string {
   return `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
-export function getAuthToken(): string | null {
-  return sessionStorage.getItem(STORAGE_KEYS.TOKEN) || localStorage.getItem(STORAGE_KEYS.TOKEN);
-}
+// In-memory token cache (tab isolation / security)
+let memoryAccessToken: string | null = null;
 
-export function getRefreshToken(): string | null {
-  return sessionStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN) || localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+export function getAuthToken(): string | null {
+  return memoryAccessToken || sessionStorage.getItem(STORAGE_KEYS.TOKEN) || localStorage.getItem(STORAGE_KEYS.TOKEN);
 }
 
 export function setAuthToken(token: string | null, remember = false): void {
+  memoryAccessToken = token;
   if (token) {
     sessionStorage.setItem(STORAGE_KEYS.TOKEN, token);
     if (remember) {
@@ -59,6 +58,11 @@ export function setAuthToken(token: string | null, remember = false): void {
     localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.USER);
   }
+}
+
+// Backward compatibility exports taaki components break na hon
+export function getRefreshToken(): string | null {
+  return sessionStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN) || localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
 }
 
 export function setRefreshToken(refreshToken: string | null, remember = false): void {
@@ -80,27 +84,24 @@ type TokenRefreshResult =
   | { status: 'invalid' }
   | { status: 'unavailable' };
 
-// In-flight refresh promise to prevent duplicate refresh requests
 let refreshPromise: Promise<TokenRefreshResult> | null = null;
 
 async function attemptTokenRefresh(): Promise<TokenRefreshResult> {
-  const currentRefresh = getRefreshToken();
-  if (!currentRefresh) return { status: 'invalid' };
-
   if (refreshPromise) {
     return refreshPromise;
   }
 
   refreshPromise = (async () => {
     try {
-      const url = buildApiUrl('/auth/refresh-token');
+      const url = buildApiUrl('/auth/refresh');
       const res = await fetch(url, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: JSON.stringify({ refreshToken: currentRefresh }),
+        body: JSON.stringify({}),
       });
 
       if (!res.ok) {
@@ -111,29 +112,14 @@ async function attemptTokenRefresh(): Promise<TokenRefreshResult> {
         return { status: 'unavailable' };
       }
 
-      let resData: unknown;
-      try {
-        resData = await res.json();
-      } catch {
-        return { status: 'unavailable' };
-      }
+      const resData = await res.json().catch(() => null);
       const data = (resData && typeof resData === 'object' && 'data' in resData) ? resData.data : resData;
-      if (!data || typeof data !== 'object') return { status: 'unavailable' };
-      const newAccessToken = 'accessToken' in data && typeof data.accessToken === 'string'
-        ? data.accessToken
-        : 'token' in data && typeof data.token === 'string'
-          ? data.token
-          : null;
-      const newRefreshToken = 'refreshToken' in data && typeof data.refreshToken === 'string'
-        ? data.refreshToken
-        : null;
+
+      const newAccessToken = data?.accessToken || data?.token || null;
 
       if (newAccessToken) {
-        const remember = Boolean(localStorage.getItem(STORAGE_KEYS.TOKEN) || localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN));
+        const remember = Boolean(localStorage.getItem(STORAGE_KEYS.TOKEN));
         setAuthToken(newAccessToken, remember);
-        if (newRefreshToken) {
-          setRefreshToken(newRefreshToken, remember);
-        }
         return { status: 'refreshed', token: newAccessToken };
       }
 
@@ -143,7 +129,7 @@ async function attemptTokenRefresh(): Promise<TokenRefreshResult> {
         status: null,
         statusText: 'Refresh Network Failure',
         method: 'POST',
-        endpoint: '/auth/refresh-token',
+        endpoint: '/auth/refresh',
         errorMessage: error instanceof Error ? error.message : 'Token refresh request failed.',
         isNetworkError: true,
       });
@@ -178,6 +164,7 @@ export async function request<T>(endpoint: string, options: RequestInit = {}): P
   try {
     res = await fetch(url, {
       ...options,
+      credentials: 'include',
       headers,
     });
   } catch (netErr: any) {
@@ -195,16 +182,16 @@ export async function request<T>(endpoint: string, options: RequestInit = {}): P
     throw new Error(errorMsg);
   }
 
-  // Handle expired/unauthorized session with automatic refresh
-  const isAuthEndpoint = endpoint.includes('/auth/login') || endpoint.includes('/auth/register') || endpoint.includes('/auth/refresh-token');
-  if (res.status === 401 && token && !isAuthEndpoint) {
+  const isAuthEndpoint = endpoint.includes('/auth/login') || endpoint.includes('/auth/register') || endpoint.includes('/auth/refresh');
+
+  if (res.status === 401 && !isAuthEndpoint) {
     const refreshResult = await attemptTokenRefresh();
     if (refreshResult.status === 'refreshed') {
-      // Retry original request with newly refreshed token
       headers.set('Authorization', `Bearer ${refreshResult.token}`);
       try {
         res = await fetch(url, {
           ...options,
+          credentials: 'include',
           headers,
         });
       } catch (retryErr: any) {
@@ -237,7 +224,6 @@ export async function request<T>(endpoint: string, options: RequestInit = {}): P
     throw new Error(msg);
   }
 
-  // Handle explicit failure flags in 200 responses
   if (data && typeof data === 'object' && 'success' in data && data.success === false) {
     recordApiDiagnosticError({
       status: res.status,
@@ -252,7 +238,6 @@ export async function request<T>(endpoint: string, options: RequestInit = {}): P
     throw new Error(data.message || 'Operation failed');
   }
 
-  // Handle wrapped Spring Boot ApiResponse { success: true, message: "...", data: ... }
   if (data && typeof data === 'object' && 'success' in data && 'data' in data) {
     return data.data as T;
   }

@@ -19,6 +19,7 @@ export async function fetchProducts(
   const queryParts: string[] = [];
   if (params.query?.trim()) queryParts.push(`query=${encodeURIComponent(params.query.trim())}`);
   if (params.categoryId) queryParts.push(`categoryId=${params.categoryId}`);
+  if (params.subcategoryId) queryParts.push(`subcategoryId=${params.subcategoryId}`);
   if (params.brandId) queryParts.push(`brandId=${params.brandId}`);
   if (params.featured !== undefined) queryParts.push(`featured=${params.featured}`);
   if (params.minPrice !== undefined) queryParts.push(`minPrice=${params.minPrice}`);
@@ -26,6 +27,18 @@ export async function fetchProducts(
   if (params.page !== undefined) queryParts.push(`page=${params.page}`);
   if (params.size !== undefined) queryParts.push(`size=${params.size}`);
   if (params.sort) queryParts.push(`sort=${encodeURIComponent(params.sort)}`);
+  if (params.occasion) queryParts.push(`occasion=${encodeURIComponent(params.occasion)}`);
+  if (params.material) queryParts.push(`material=${encodeURIComponent(params.material)}`);
+  if (params.plating) queryParts.push(`plating=${encodeURIComponent(params.plating)}`);
+  if (params.stoneType) queryParts.push(`stoneType=${encodeURIComponent(params.stoneType)}`);
+  if (params.color) queryParts.push(`color=${encodeURIComponent(params.color)}`);
+  if (params.attributes) {
+    Object.entries(params.attributes).forEach(([key, val]) => {
+      if (val && typeof val === 'string' && val.trim()) {
+        queryParts.push(`${encodeURIComponent(key)}=${encodeURIComponent(val.trim())}`);
+      }
+    });
+  }
 
   const qs = queryParts.length ? `?${queryParts.join('&')}` : '';
   return request<PageResponse<ProductResponse>>(`/products${qs}`);

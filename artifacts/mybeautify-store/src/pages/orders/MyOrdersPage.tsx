@@ -24,7 +24,6 @@ import {
   Clock,
   ArrowRight,
   ShieldCheck,
-  CreditCard,
   RotateCcw,
   Check,
 } from 'lucide-react';

@@ -47,3 +47,6 @@ export const PRODUCT_RATING_LOOKUP: Record<number, number> = {
   7: 4.7,
   8: 4.4,
 };
+
+export * from './product-attributes';
+

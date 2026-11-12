@@ -42,6 +42,30 @@ export function setCachedUser(user: UserResponse | null): void {
 export function logout(): void {
   setAuthToken(null);
   setCachedUser(null);
+  if (typeof window !== 'undefined') {
+    try {
+      sessionStorage.removeItem('malkaz_pending_verification');
+    } catch {}
+  }
+}
+
+function sanitizePendingVerificationOnUserChange(newUser: UserResponse | null): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const saved = sessionStorage.getItem('malkaz_pending_verification');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === 'object') {
+        if (!newUser || (parsed.userId && parsed.userId !== newUser.id)) {
+          sessionStorage.removeItem('malkaz_pending_verification');
+        }
+      } else {
+        sessionStorage.removeItem('malkaz_pending_verification');
+      }
+    }
+  } catch {
+    sessionStorage.removeItem('malkaz_pending_verification');
+  }
 }
 
 export async function login(
@@ -63,6 +87,8 @@ export async function login(
 
   if (res.user) {
     setCachedUser(res.user);
+  sanitizePendingVerificationOnUserChange(res.user);
+    sanitizePendingVerificationOnUserChange(res.user);
   }
 
   return res;
@@ -87,6 +113,8 @@ export async function register(
 
   if (res.user) {
     setCachedUser(res.user);
+  sanitizePendingVerificationOnUserChange(res.user);
+    sanitizePendingVerificationOnUserChange(res.user);
   }
 
   return res;
@@ -115,6 +143,7 @@ export async function loginWithGoogle(
     setRefreshToken(res.refreshToken, remember);
   }
   setCachedUser(res.user);
+  sanitizePendingVerificationOnUserChange(res.user);
 
   return { ...res, accessToken: token };
 }

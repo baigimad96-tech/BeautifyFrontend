@@ -30,13 +30,13 @@ import {
   Trash2,
   Share2,
   Shield,
+  Gift,
 } from 'lucide-react';
 import { hasAdminRole } from '@/utils/auth';
 import { matchesProductPrice, parsePriceSearchQuery } from '@/utils/product-price-search';
 import {
   fetchProducts,
   fetchCategories,
-  fetchBrands,
   fetchCurrentUser,
   fetchCart,
   addToCart as apiAddToCart,
@@ -57,13 +57,15 @@ import {
   setCachedUser,
   type ProductResponse,
   type CategoryResponse,
-  type BrandResponse,
   type UserResponse,
   type CartResponse,
   type OrderResponse,
   type AddressResponse,
   type CouponResponse,
 } from '@/lib/api';
+import { fetchSubcategories } from '@/services/subcategories/subcategories.service';
+import type { SubcategoryResponse } from '@/types/subcategory.types';
+import { COMMON_ATTRIBUTES } from '@/constants/product-attributes';
 import '@/styles/customer-dashboard.css';
 import { HeaderSearchBar } from '@/components/common/HeaderSearchBar';
 import { AnnouncementBar } from '@/components/common/AnnouncementBar';
@@ -73,6 +75,8 @@ import { MalkazSidebar } from '@/components/layout/MalkazSidebar';
 import { getJewelleryImage } from '@/lib/jewellery-images';
 import { animateTrashCan } from '@/lib/cart-animations';
 import { removeComboGroupFromCart } from '@/services/combos/combos.service';
+import { fetchActiveCoupons, type AdminCouponResponse } from '@/services/coupons/coupons.service';
+import type { CartItemResponse } from '@/types/cart.types';
 
 // Currency formatting with Rupee symbol as per reference design
 const formatCurrency = (val: number | undefined | null) => {
@@ -99,6 +103,7 @@ type AppliedProductFilters = {
   minRating: number | null;
   minDiscount: number | null;
   inStockOnly: boolean;
+  attributes: Record<string, string[]>;
 };
 
 const EMPTY_PRODUCT_FILTERS: AppliedProductFilters = {
@@ -109,6 +114,13 @@ const EMPTY_PRODUCT_FILTERS: AppliedProductFilters = {
   minRating: null,
   minDiscount: null,
   inStockOnly: false,
+  attributes: {
+    occasion: [],
+    material: [],
+    plating: [],
+    stoneType: [],
+    colorFinish: [],
+  },
 };
 
 const HERO_SLIDES = [
@@ -213,7 +225,9 @@ export default function CustomerDashboard() {
   // Catalog Data from Backend
   const [products, setProducts] = useState<ProductResponse[]>([]);
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
-  const [brands, setBrands] = useState<BrandResponse[]>([]);
+  const [subcategories, setSubcategories] = useState<SubcategoryResponse[]>([]);
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
+  const [loadingSubcategories, setLoadingSubcategories] = useState(false);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [productError, setProductError] = useState<string | null>(null);
 
@@ -223,6 +237,8 @@ export default function CustomerDashboard() {
   const [wishlistIds, setWishlistIds] = useState<Set<number>>(new Set());
   const [cartLoading, setCartLoading] = useState(false);
   const [removingCartItemId, setRemovingCartItemId] = useState<number | null>(null);
+  const [activeCoupons, setActiveCoupons] = useState<AdminCouponResponse[]>([]);
+  const [loadingCoupons, setLoadingCoupons] = useState(false);
 
   // Search & Filters State
   const [searchQuery, setSearchQuery] = useState('');
@@ -237,12 +253,26 @@ export default function CustomerDashboard() {
   const [appliedFilters, setAppliedFilters] = useState<AppliedProductFilters>(EMPTY_PRODUCT_FILTERS);
   const [sortBy, setSortBy] = useState<string>('popularity');
 
+  // Attribute filters state
+  const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string[]>>({
+    occasion: [],
+    material: [],
+    plating: [],
+    stoneType: [],
+    colorFinish: [],
+  });
+
   // Collapsible Filter sections
   const [categoryOpen, setCategoryOpen] = useState(true);
   const [brandOpen, setBrandOpen] = useState(true);
   const [priceOpen, setPriceOpen] = useState(true);
   const [ratingOpen, setRatingOpen] = useState(true);
   const [discountOpen, setDiscountOpen] = useState(true);
+  const [occasionOpen, setOccasionOpen] = useState(true);
+  const [materialOpen, setMaterialOpen] = useState(false);
+  const [platingOpen, setPlatingOpen] = useState(false);
+  const [stoneTypeOpen, setStoneTypeOpen] = useState(false);
+  const [colorFinishOpen, setColorFinishOpen] = useState(false);
   const [showMoreBrands, setShowMoreBrands] = useState(false);
 
   // Additional Data for Sub-Views
@@ -340,16 +370,32 @@ export default function CustomerDashboard() {
       });
   }, [setLocation, location]);
 
-  // Load real backend Categories and Brands
+  // Load real backend Categories
   useEffect(() => {
     fetchCategories()
       .then((data) => setCategories(data))
       .catch((err) => console.error('Error fetching categories:', err));
-
-    fetchBrands()
-      .then((data) => setBrands(data))
-      .catch((err) => console.error('Error fetching brands:', err));
   }, []);
+
+  // Fetch subcategories when a category is selected
+  useEffect(() => {
+    const currentCategory = categories.find(
+      (c) => c.name === selectedCategory || String(c.id) === selectedCategory
+    );
+    if (currentCategory) {
+      setLoadingSubcategories(true);
+      fetchSubcategories(currentCategory.id)
+        .then((data) => setSubcategories(data.filter((s) => s.active !== false)))
+        .catch((err) => {
+          console.error('Error fetching subcategories:', err);
+          setSubcategories([]);
+        })
+        .finally(() => setLoadingSubcategories(false));
+    } else {
+      setSubcategories([]);
+    }
+    setSelectedSubcategory(null);
+  }, [selectedCategory, categories]);
 
   // Load authenticated customer's Wishlist from Spring Boot
   const reloadWishlist = useCallback(() => {
@@ -475,9 +521,43 @@ export default function CustomerDashboard() {
     setLocation(`${path}${query ? `?${query}` : ''}`);
   };
 
+  // Toggle attribute in filter
+  const toggleAttribute = (attrKey: string, value: string) => {
+    setSelectedAttributes((prev) => {
+      const currentList = prev[attrKey] || [];
+      const updated = currentList.includes(value)
+        ? currentList.filter((item) => item !== value)
+        : [...currentList, value];
+      return { ...prev, [attrKey]: updated };
+    });
+  };
+
+  // Helper to count products matching an attribute option
+  const getAttributeCount = useCallback(
+    (attrKey: string, val: string) => {
+      const valLower = val.toLowerCase().trim();
+      return products.filter((p) => {
+        if (p.attributes) {
+          const attrVal = p.attributes[attrKey] || p.attributes[attrKey.toLowerCase()];
+          if (attrVal && attrVal.toLowerCase().includes(valLower)) return true;
+          for (const storedVal of Object.values(p.attributes)) {
+            if (typeof storedVal === 'string' && storedVal.toLowerCase().includes(valLower)) {
+              return true;
+            }
+          }
+        }
+        if (p.description && p.description.toLowerCase().includes(valLower)) return true;
+        if (p.name && p.name.toLowerCase().includes(valLower)) return true;
+        return false;
+      }).length;
+    },
+    [products]
+  );
+
   // Clear all filters
   const clearAllFilters = () => {
     setCategoryFilter(null);
+    setSelectedSubcategory(null);
     const searchParams = new URLSearchParams(window.location.search);
     searchParams.delete('category');
     searchParams.delete('q');
@@ -489,6 +569,13 @@ export default function CustomerDashboard() {
     setMinRating(null);
     setMinDiscount(null);
     setInStockOnly(false);
+    setSelectedAttributes({
+      occasion: [],
+      material: [],
+      plating: [],
+      stoneType: [],
+      colorFinish: [],
+    });
     setAppliedFilters(EMPTY_PRODUCT_FILTERS);
     setSearchQuery('');
   };
@@ -506,6 +593,7 @@ export default function CustomerDashboard() {
       minRating,
       minDiscount,
       inStockOnly,
+      attributes: { ...selectedAttributes },
     });
     setFilterOpen(false);
   };
@@ -534,6 +622,14 @@ export default function CustomerDashboard() {
         if (!catMatch) return false;
       }
 
+      // Subcategory filter (match by name or ID)
+      if (selectedSubcategory) {
+        const subMatch =
+          p.subcategoryName?.toLowerCase() === selectedSubcategory.toLowerCase() ||
+          p.subcategoryId?.toString() === selectedSubcategory;
+        if (!subMatch) return false;
+      }
+
       // Brand filter
       if (appliedFilters.brands.length > 0) {
         const brandMatch = appliedFilters.brands.some(
@@ -558,9 +654,34 @@ export default function CustomerDashboard() {
       }
 
       if (appliedFilters.inStockOnly && p.stockQuantity <= 0) return false;
+
+      // Dynamic Attribute filters (Occasion, Material, Plating, Stone Type, Color / Finish)
+      if (appliedFilters.attributes) {
+        for (const [attrKey, selectedVals] of Object.entries(appliedFilters.attributes)) {
+          if (Array.isArray(selectedVals) && selectedVals.length > 0) {
+            const matchesAny = selectedVals.some((val) => {
+              const valLower = val.toLowerCase().trim();
+              if (p.attributes) {
+                const attrVal = p.attributes[attrKey] || p.attributes[attrKey.toLowerCase()];
+                if (attrVal && attrVal.toLowerCase().includes(valLower)) return true;
+                for (const storedVal of Object.values(p.attributes)) {
+                  if (typeof storedVal === 'string' && storedVal.toLowerCase().includes(valLower)) {
+                    return true;
+                  }
+                }
+              }
+              if (p.description && p.description.toLowerCase().includes(valLower)) return true;
+              if (p.name && p.name.toLowerCase().includes(valLower)) return true;
+              return false;
+            });
+            if (!matchesAny) return false;
+          }
+        }
+      }
+
       return true;
     });
-  }, [products, appliedFilters, debouncedQuery]);
+  }, [products, appliedFilters, debouncedQuery, selectedSubcategory]);
 
   // Order products to match reference display when on default popularity sort
   const sortedAndFilteredProducts = useMemo(() => {
@@ -580,20 +701,6 @@ export default function CustomerDashboard() {
     return counts;
   }, [products]);
 
-  // Compute brand counts for filter display
-  const brandCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    products.forEach((p) => {
-      const name = p.brandName || 'Other';
-      counts[name] = (counts[name] || 0) + 1;
-    });
-    return counts;
-  }, [products]);
-
-  const availableBrands = useMemo(
-    () => brands.filter((brand) => (brandCounts[brand.name] ?? 0) > 0),
-    [brands, brandCounts]
-  );
   const priceBounds = useMemo(() => {
     const prices = products.map((product) => product.sellingPrice || product.price).filter(Number.isFinite);
     return {
@@ -601,6 +708,14 @@ export default function CustomerDashboard() {
       max: prices.length ? Math.ceil(Math.max(...prices)) : 0,
     };
   }, [products]);
+
+  const activeAttributeCount = useMemo(() => {
+    return Object.values(appliedFilters.attributes || {}).reduce(
+      (acc, list) => acc + (Array.isArray(list) ? list.length : 0),
+      0
+    );
+  }, [appliedFilters.attributes]);
+
   const activeFilterCount =
     Number(Boolean(appliedFilters.category)) +
     appliedFilters.brands.length +
@@ -608,7 +723,8 @@ export default function CustomerDashboard() {
     Number(appliedFilters.maxPrice < Number.MAX_SAFE_INTEGER) +
     Number(appliedFilters.minRating !== null) +
     Number(appliedFilters.minDiscount !== null) +
-    Number(appliedFilters.inStockOnly);
+    Number(appliedFilters.inStockOnly) +
+    activeAttributeCount;
 
   // Wishlist Toggle (Add/Remove)
   const handleToggleWishlist = async (product: ProductResponse) => {
@@ -674,7 +790,7 @@ export default function CustomerDashboard() {
   const handleRemoveCartItem = async (itemId: number, removeButton: HTMLElement) => {
     if (removingCartItemId !== null) return;
     setRemovingCartItemId(itemId);
-    let restoreTrashIcon = () => {};
+    let restoreTrashIcon = () => { };
     try {
       restoreTrashIcon = await animateTrashCan(removeButton);
       const item = cart?.items.find((cartItem) => cartItem.id === itemId);
@@ -689,6 +805,72 @@ export default function CustomerDashboard() {
       setRemovingCartItemId(null);
     }
   };
+
+  // Remove entire combo package from cart
+  const handleRemoveComboGroup = async (comboGroupId: string, removeButton: HTMLElement) => {
+    if (removingCartItemId !== null) return;
+    setRemovingCartItemId(-1);
+    let restoreTrashIcon = () => { };
+    try {
+      restoreTrashIcon = await animateTrashCan(removeButton);
+      await removeComboGroupFromCart(comboGroupId);
+      setCart(await fetchCart());
+      showToast('Combo package removed from cart.');
+    } catch (err: any) {
+      restoreTrashIcon();
+      showToast(err.message || 'Failed to remove combo package.');
+    } finally {
+      setRemovingCartItemId(null);
+    }
+  };
+
+  // Grouped cart entries for visual packaging
+  const groupedCartEntries = useMemo(() => {
+    if (!cart?.items) return [];
+    type GroupEntry =
+      | { type: 'regular'; item: CartItemResponse }
+      | {
+        type: 'combo';
+        comboGroupId: string;
+        comboName: string;
+        comboType?: string | null;
+        items: CartItemResponse[];
+        totalPrice: number;
+      };
+
+    const result: GroupEntry[] = [];
+    const comboMap = new Map<string, {
+      type: 'combo';
+      comboGroupId: string;
+      comboName: string;
+      comboType?: string | null;
+      items: CartItemResponse[];
+      totalPrice: number;
+    }>();
+
+    for (const item of cart.items) {
+      if (item.comboGroupId) {
+        let entry = comboMap.get(item.comboGroupId);
+        if (!entry) {
+          entry = {
+            type: 'combo',
+            comboGroupId: item.comboGroupId,
+            comboName: item.comboName || 'Curated Combo Set',
+            comboType: item.comboType,
+            items: [],
+            totalPrice: 0,
+          };
+          comboMap.set(item.comboGroupId, entry);
+          result.push(entry);
+        }
+        entry.items.push(item);
+        entry.totalPrice += (item.price || 0) * (item.quantity || 1);
+      } else {
+        result.push({ type: 'regular', item });
+      }
+    }
+    return result;
+  }, [cart?.items]);
 
   // Logout Handler
   const handleLogout = () => {
@@ -751,6 +933,39 @@ export default function CustomerDashboard() {
     }
   };
 
+  // Direct 1-click apply coupon handler
+  const handleApplyCouponDirect = async (code: string) => {
+    setCouponCodeInput(code);
+    setCouponError('');
+    try {
+      const subtotal = cart?.subtotal || 100;
+      const res = await apiApplyCoupon(code, subtotal);
+      setCouponResult(res);
+      showToast(`Coupon ${res.code} applied successfully!`);
+    } catch (err: any) {
+      setCouponError(err.message || 'Invalid coupon code.');
+    }
+  };
+
+  // Fetch active public coupons when modal opens
+  const loadActiveCoupons = useCallback(async () => {
+    setLoadingCoupons(true);
+    try {
+      const list = await fetchActiveCoupons();
+      setActiveCoupons(list);
+    } catch (e) {
+      console.error('Failed to load active coupons:', e);
+    } finally {
+      setLoadingCoupons(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeModal === 'coupons') {
+      void loadActiveCoupons();
+    }
+  }, [activeModal, loadActiveCoupons]);
+
   // Total cart item count
   const cartItemCount = useMemo(() => {
     return cart?.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
@@ -758,9 +973,6 @@ export default function CustomerDashboard() {
 
   // Wishlist count
   const wishlistCount = wishlistIds.size;
-
-  // Filter display brands list (with "+ Show more")
-  const brandListToDisplay = showMoreBrands ? availableBrands : availableBrands.slice(0, 5);
 
   if (authLoading) {
     return (
@@ -1160,6 +1372,59 @@ export default function CustomerDashboard() {
                   );
                 })}
             </div>
+
+            {/* Subcategory Filter Pills (Task 4) */}
+            {selectedCategory && (subcategories.length > 0 || loadingSubcategories) && (
+              <div className="mz-subcategory-pills-wrap" style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid #E8DEC8' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#0A3B2C', textTransform: 'uppercase', letterSpacing: '0.08em', marginRight: 4 }}>
+                    Subcategories in {selectedCategory}:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSubcategory(null)}
+                    style={{
+                      padding: '5px 14px',
+                      borderRadius: 999,
+                      border: '1px solid',
+                      borderColor: selectedSubcategory === null ? '#0A3B2C' : '#E2E8F0',
+                      background: selectedSubcategory === null ? '#0A3B2C' : '#FAF7F2',
+                      color: selectedSubcategory === null ? '#FAF7F2' : '#1E293B',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 150ms ease',
+                    }}
+                  >
+                    All {selectedCategory}
+                  </button>
+                  {subcategories.map((sub) => {
+                    const isSelected = selectedSubcategory === sub.name || selectedSubcategory === String(sub.id);
+                    return (
+                      <button
+                        key={sub.id}
+                        type="button"
+                        onClick={() => setSelectedSubcategory(isSelected ? null : sub.name)}
+                        style={{
+                          padding: '5px 14px',
+                          borderRadius: 999,
+                          border: '1px solid',
+                          borderColor: isSelected ? '#0A3B2C' : '#E2E8F0',
+                          background: isSelected ? '#0A3B2C' : '#FAF7F2',
+                          color: isSelected ? '#FAF7F2' : '#1E293B',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'all 150ms ease',
+                        }}
+                      >
+                        {sub.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </section>
 
           <section className="mz-motion-story mz-scroll-reveal" aria-labelledby="mz-motion-story-title">
@@ -1207,262 +1472,429 @@ export default function CustomerDashboard() {
                   onClick={() => setFilterOpen(false)}
                 />
                 <aside className="mb-filter-panel mz-filter-panel" id="mz-product-filter-panel" aria-label="Product filters">
-              <div className="mb-filter-header mz-filter-header">
-                <div className="mz-filter-title-wrap">
-                  <h3 className="mb-filter-heading mz-filter-heading">Filter by</h3>
-                  <button
-                    type="button"
-                    className="mz-filter-close"
-                    aria-label="Close filters"
-                    onClick={() => setFilterOpen(false)}
-                  >
-                    <X size={19} />
-                  </button>
-                </div>
-                <button type="button" className="mb-clear-all-btn mz-clear-all-btn" onClick={clearAllFilters}>
-                  Clear All
-                </button>
-              </div>
+                  <div className="mb-filter-header mz-filter-header">
+                    <div className="mz-filter-title-wrap">
+                      <h3 className="mb-filter-heading mz-filter-heading">Filter by</h3>
+                      <button
+                        type="button"
+                        className="mz-filter-close"
+                        aria-label="Close filters"
+                        onClick={() => setFilterOpen(false)}
+                      >
+                        <X size={19} />
+                      </button>
+                    </div>
+                    <button type="button" className="mb-clear-all-btn mz-clear-all-btn" onClick={clearAllFilters}>
+                      Clear All
+                    </button>
+                  </div>
 
-              {/* Category Filter */}
-              {categories.some((category) => category.active !== false && (categoryCounts[category.name] ?? 0) > 0) && (
-                <div className="mb-filter-section mz-filter-section">
-                  <button
-                    type="button"
-                    className="mb-filter-section-title mz-filter-section-title"
-                    onClick={() => setCategoryOpen((o) => !o)}
-                  >
-                    <span>Category</span>
-                    {categoryOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </button>
+                  {/* Category Filter */}
+                  {categories.some((category) => category.active !== false && (categoryCounts[category.name] ?? 0) > 0) && (
+                    <div className="mb-filter-section mz-filter-section">
+                      <button
+                        type="button"
+                        className="mb-filter-section-title mz-filter-section-title"
+                        onClick={() => setCategoryOpen((o) => !o)}
+                      >
+                        <span>Category</span>
+                        {categoryOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      </button>
 
-                  {categoryOpen && (
-                    <div className="mb-filter-options">
-                      {categories
-                        .filter((category) => category.active !== false)
-                        .filter((category) => (categoryCounts[category.name] ?? 0) > 0)
-                        .map((cat) => {
-                          const count = categoryCounts[cat.name] || 0;
-                          const isChecked = selectedCategory === cat.name || selectedCategory === String(cat.id);
+                      {categoryOpen && (
+                        <div className="mb-filter-options">
+                          {categories
+                            .filter((category) => category.active !== false)
+                            .filter((category) => (categoryCounts[category.name] ?? 0) > 0)
+                            .map((cat) => {
+                              const count = categoryCounts[cat.name] || 0;
+                              const isChecked = selectedCategory === cat.name || selectedCategory === String(cat.id);
+                              return (
+                                <label key={cat.id} className="mb-filter-checkbox-row mz-checkbox-row">
+                                  <span className="mb-filter-label-group">
+                                    <input
+                                      type="checkbox"
+                                      className="mb-checkbox mz-checkbox"
+                                      checked={isChecked}
+                                      onChange={() => setSelectedCategory(isChecked ? null : cat.name)}
+                                    />
+                                    <span>{cat.name}</span>
+                                  </span>
+                                  <span className="mb-filter-count mz-filter-count">({count})</span>
+                                </label>
+                              );
+                            })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Subcategory Filter (Task 4) */}
+                  {subcategories.length > 0 && (
+                    <div className="mb-filter-section mz-filter-section">
+                      <div className="mb-filter-section-title mz-filter-section-title" style={{ cursor: 'default' }}>
+                        <span>Subcategory</span>
+                      </div>
+                      <div className="mb-filter-options">
+                        <label className="mb-filter-checkbox-row mz-checkbox-row">
+                          <span className="mb-filter-label-group">
+                            <input
+                              type="checkbox"
+                              className="mb-checkbox mz-checkbox"
+                              checked={selectedSubcategory === null}
+                              onChange={() => setSelectedSubcategory(null)}
+                            />
+                            <span>All {selectedCategory}</span>
+                          </span>
+                        </label>
+                        {subcategories.map((sub) => {
+                          const isChecked = selectedSubcategory === sub.name || selectedSubcategory === String(sub.id);
                           return (
-                            <label key={cat.id} className="mb-filter-checkbox-row mz-checkbox-row">
+                            <label key={sub.id} className="mb-filter-checkbox-row mz-checkbox-row">
                               <span className="mb-filter-label-group">
                                 <input
                                   type="checkbox"
                                   className="mb-checkbox mz-checkbox"
                                   checked={isChecked}
-                                  onChange={() => setSelectedCategory(isChecked ? null : cat.name)}
+                                  onChange={() => setSelectedSubcategory(isChecked ? null : sub.name)}
                                 />
-                                <span>{cat.name}</span>
+                                <span>{sub.name}</span>
                               </span>
-                              <span className="mb-filter-count mz-filter-count">({count})</span>
                             </label>
                           );
                         })}
+                      </div>
                     </div>
                   )}
-                </div>
-              )}
 
-              {/* Brand Filter */}
-              {availableBrands.length > 0 && (
-                <div className="mb-filter-section mz-filter-section">
-                  <button
-                    type="button"
-                    className="mb-filter-section-title mz-filter-section-title"
-                    onClick={() => setBrandOpen((open) => !open)}
-                  >
-                    <span>Brand</span>
-                    {brandOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </button>
-                  {brandOpen && (
-                    <div className="mb-filter-options">
-                      {brandListToDisplay.map((brand) => (
-                        <label key={brand.id} className="mb-filter-checkbox-row mz-checkbox-row">
-                          <span className="mb-filter-label-group">
-                            <input
-                              type="checkbox"
-                              className="mb-checkbox mz-checkbox"
-                              checked={selectedBrands.includes(brand.name)}
-                              onChange={() => toggleBrand(brand.name)}
-                            />
-                            <span>{brand.name}</span>
-                          </span>
-                          <span className="mb-filter-count mz-filter-count">({brandCounts[brand.name] ?? 0})</span>
-                        </label>
-                      ))}
-                      {availableBrands.length > 5 && (
-                        <button
-                          type="button"
-                          className="mb-show-more-btn"
-                          onClick={() => setShowMoreBrands((show) => !show)}
-                        >
-                          {showMoreBrands ? 'Show less' : 'Show more'}
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Price Range Filter */}
-              {products.length > 0 && (
-                <div className="mb-filter-section mz-filter-section">
-                <button
-                  type="button"
-                  className="mb-filter-section-title mz-filter-section-title"
-                  onClick={() => setPriceOpen((o) => !o)}
-                >
-                  <span>Price Range</span>
-                  {priceOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </button>
-
-                {priceOpen && (
-                  <div className="mb-price-slider-wrap mz-price-slider-wrap">
-                    <div className="mz-price-inputs">
-                      <label>
-                        <span>Minimum (₹)</span>
-                        <input
-                          type="number"
-                          min={priceBounds.min}
-                          max={maxPrice === Number.MAX_SAFE_INTEGER ? priceBounds.max : maxPrice}
-                          value={minPrice || priceBounds.min}
-                          onChange={(event) => {
-                            const nextMinimum = Number(event.target.value);
-                            setMinPrice(nextMinimum);
-                            if (nextMinimum > maxPrice) setMaxPrice(nextMinimum);
-                          }}
-                        />
-                      </label>
-                      <label>
-                        <span>Maximum (₹)</span>
-                        <input
-                          type="number"
-                          min={minPrice || priceBounds.min}
-                          max={priceBounds.max}
-                          value={maxPrice === Number.MAX_SAFE_INTEGER ? priceBounds.max : maxPrice}
-                          onChange={(event) => {
-                            const nextMaximum = Number(event.target.value);
-                            setMaxPrice(nextMaximum);
-                            if (nextMaximum < minPrice) setMinPrice(nextMaximum);
-                          }}
-                        />
-                      </label>
-                    </div>
-                  </div>
-                )}
-                </div>
-              )}
-
-              {/* Rating Filter */}
-              {products.some((product) => getProductRating(product) > 0) && (
-                <div className="mb-filter-section mz-filter-section">
-                  <button
-                    type="button"
-                    className="mb-filter-section-title mz-filter-section-title"
-                    onClick={() => setRatingOpen((o) => !o)}
-                  >
-                    <span>Rating</span>
-                    {ratingOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </button>
-
-                  {ratingOpen && (
-                    <div className="mb-filter-options">
-                      {[4, 3, 2]
-                        .filter((rating) => products.some((product) => getProductRating(product) >= rating))
-                        .map((rating) => {
-                          const count = products.filter((product) => getProductRating(product) >= rating).length;
+                  {/* Occasion Filter */}
+                  <div className="mb-filter-section mz-filter-section">
+                    <button
+                      type="button"
+                      className="mb-filter-section-title mz-filter-section-title"
+                      onClick={() => setOccasionOpen((o) => !o)}
+                    >
+                      <span>Occasion</span>
+                      {occasionOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                    {occasionOpen && (
+                      <div className="mb-filter-options">
+                        {(COMMON_ATTRIBUTES.occasion.options || []).map((opt) => {
+                          const count = getAttributeCount('occasion', opt);
+                          const isChecked = (selectedAttributes.occasion || []).includes(opt);
                           return (
-                            <label key={rating} className="mb-filter-checkbox-row mz-checkbox-row">
+                            <label key={opt} className="mb-filter-checkbox-row mz-checkbox-row">
                               <span className="mb-filter-label-group">
                                 <input
                                   type="checkbox"
                                   className="mb-checkbox mz-checkbox"
-                                  checked={minRating === rating}
-                                  onChange={() => setMinRating(minRating === rating ? null : rating)}
+                                  checked={isChecked}
+                                  onChange={() => toggleAttribute('occasion', opt)}
                                 />
-                                <span>{rating} & above</span>
+                                <span>{opt}</span>
                               </span>
                               <span className="mb-filter-count mz-filter-count">({count})</span>
                             </label>
                           );
                         })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Material Filter */}
+                  <div className="mb-filter-section mz-filter-section">
+                    <button
+                      type="button"
+                      className="mb-filter-section-title mz-filter-section-title"
+                      onClick={() => setMaterialOpen((o) => !o)}
+                    >
+                      <span>Material</span>
+                      {materialOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                    {materialOpen && (
+                      <div className="mb-filter-options">
+                        {(COMMON_ATTRIBUTES.material.options || []).map((opt) => {
+                          const count = getAttributeCount('material', opt);
+                          const isChecked = (selectedAttributes.material || []).includes(opt);
+                          return (
+                            <label key={opt} className="mb-filter-checkbox-row mz-checkbox-row">
+                              <span className="mb-filter-label-group">
+                                <input
+                                  type="checkbox"
+                                  className="mb-checkbox mz-checkbox"
+                                  checked={isChecked}
+                                  onChange={() => toggleAttribute('material', opt)}
+                                />
+                                <span>{opt}</span>
+                              </span>
+                              <span className="mb-filter-count mz-filter-count">({count})</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Plating Filter */}
+                  <div className="mb-filter-section mz-filter-section">
+                    <button
+                      type="button"
+                      className="mb-filter-section-title mz-filter-section-title"
+                      onClick={() => setPlatingOpen((o) => !o)}
+                    >
+                      <span>Plating</span>
+                      {platingOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                    {platingOpen && (
+                      <div className="mb-filter-options">
+                        {(COMMON_ATTRIBUTES.plating.options || []).map((opt) => {
+                          const count = getAttributeCount('plating', opt);
+                          const isChecked = (selectedAttributes.plating || []).includes(opt);
+                          return (
+                            <label key={opt} className="mb-filter-checkbox-row mz-checkbox-row">
+                              <span className="mb-filter-label-group">
+                                <input
+                                  type="checkbox"
+                                  className="mb-checkbox mz-checkbox"
+                                  checked={isChecked}
+                                  onChange={() => toggleAttribute('plating', opt)}
+                                />
+                                <span>{opt}</span>
+                              </span>
+                              <span className="mb-filter-count mz-filter-count">({count})</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Stone Type Filter */}
+                  <div className="mb-filter-section mz-filter-section">
+                    <button
+                      type="button"
+                      className="mb-filter-section-title mz-filter-section-title"
+                      onClick={() => setStoneTypeOpen((o) => !o)}
+                    >
+                      <span>Stone Type</span>
+                      {stoneTypeOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                    {stoneTypeOpen && (
+                      <div className="mb-filter-options">
+                        {(COMMON_ATTRIBUTES.stoneType.options || []).map((opt) => {
+                          const count = getAttributeCount('stoneType', opt);
+                          const isChecked = (selectedAttributes.stoneType || []).includes(opt);
+                          return (
+                            <label key={opt} className="mb-filter-checkbox-row mz-checkbox-row">
+                              <span className="mb-filter-label-group">
+                                <input
+                                  type="checkbox"
+                                  className="mb-checkbox mz-checkbox"
+                                  checked={isChecked}
+                                  onChange={() => toggleAttribute('stoneType', opt)}
+                                />
+                                <span>{opt}</span>
+                              </span>
+                              <span className="mb-filter-count mz-filter-count">({count})</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Color / Finish Filter */}
+                  <div className="mb-filter-section mz-filter-section">
+                    <button
+                      type="button"
+                      className="mb-filter-section-title mz-filter-section-title"
+                      onClick={() => setColorFinishOpen((o) => !o)}
+                    >
+                      <span>Color / Finish</span>
+                      {colorFinishOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                    {colorFinishOpen && (
+                      <div className="mb-filter-options">
+                        {(COMMON_ATTRIBUTES.colorFinish.options || []).map((opt) => {
+                          const count = getAttributeCount('colorFinish', opt);
+                          const isChecked = (selectedAttributes.colorFinish || []).includes(opt);
+                          return (
+                            <label key={opt} className="mb-filter-checkbox-row mz-checkbox-row">
+                              <span className="mb-filter-label-group">
+                                <input
+                                  type="checkbox"
+                                  className="mb-checkbox mz-checkbox"
+                                  checked={isChecked}
+                                  onChange={() => toggleAttribute('colorFinish', opt)}
+                                />
+                                <span>{opt}</span>
+                              </span>
+                              <span className="mb-filter-count mz-filter-count">({count})</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Price Range Filter */}
+                  {products.length > 0 && (
+                    <div className="mb-filter-section mz-filter-section">
+                      <button
+                        type="button"
+                        className="mb-filter-section-title mz-filter-section-title"
+                        onClick={() => setPriceOpen((o) => !o)}
+                      >
+                        <span>Price Range</span>
+                        {priceOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      </button>
+
+                      {priceOpen && (
+                        <div className="mb-price-slider-wrap mz-price-slider-wrap">
+                          <div className="mz-price-inputs">
+                            <label>
+                              <span>Minimum (₹)</span>
+                              <input
+                                type="number"
+                                min={priceBounds.min}
+                                max={maxPrice === Number.MAX_SAFE_INTEGER ? priceBounds.max : maxPrice}
+                                value={minPrice || priceBounds.min}
+                                onChange={(event) => {
+                                  const nextMinimum = Number(event.target.value);
+                                  setMinPrice(nextMinimum);
+                                  if (nextMinimum > maxPrice) setMaxPrice(nextMinimum);
+                                }}
+                              />
+                            </label>
+                            <label>
+                              <span>Maximum (₹)</span>
+                              <input
+                                type="number"
+                                min={minPrice || priceBounds.min}
+                                max={priceBounds.max}
+                                value={maxPrice === Number.MAX_SAFE_INTEGER ? priceBounds.max : maxPrice}
+                                onChange={(event) => {
+                                  const nextMaximum = Number(event.target.value);
+                                  setMaxPrice(nextMaximum);
+                                  if (nextMaximum < minPrice) setMinPrice(nextMaximum);
+                                }}
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
-              )}
 
-              {/* Discount Filter */}
-              {products.some((product) => product.discountPrice && product.discountPrice < product.price) && (
-                <div className="mb-filter-section mz-filter-section">
-                <button
-                  type="button"
-                  className="mb-filter-section-title mz-filter-section-title"
-                  onClick={() => setDiscountOpen((o) => !o)}
-                >
-                  <span>Discount</span>
-                  {discountOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </button>
+                  {/* Rating Filter */}
+                  {products.some((product) => getProductRating(product) > 0) && (
+                    <div className="mb-filter-section mz-filter-section">
+                      <button
+                        type="button"
+                        className="mb-filter-section-title mz-filter-section-title"
+                        onClick={() => setRatingOpen((o) => !o)}
+                      >
+                        <span>Rating</span>
+                        {ratingOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      </button>
 
-                {discountOpen && (
-                  <div className="mb-filter-options">
-                    {[10, 20, 30]
-                      .filter((pct) => products.some((product) => {
-                        const discountPrice = product.discountPrice;
-                        return Boolean(
-                          discountPrice &&
-                          discountPrice < product.price &&
-                          ((product.price - discountPrice) / product.price) * 100 >= pct
-                        );
-                      }))
-                      .map((pct) => {
-                        const count = products.filter((product) => {
-                          const discountPrice = product.discountPrice;
-                          if (!discountPrice || discountPrice >= product.price) return false;
-                          return ((product.price - discountPrice) / product.price) * 100 >= pct;
-                        }).length;
-                        return (
-                          <label key={pct} className="mb-filter-checkbox-row mz-checkbox-row">
-                            <span className="mb-filter-label-group">
-                              <input
-                                type="checkbox"
-                                className="mb-checkbox mz-checkbox"
-                                checked={minDiscount === pct}
-                                onChange={() => setMinDiscount(minDiscount === pct ? null : pct)}
-                              />
-                              <span>{pct}% or more</span>
-                            </span>
-                            <span className="mb-filter-count mz-filter-count">({count})</span>
-                          </label>
-                        );
-                      })}
+                      {ratingOpen && (
+                        <div className="mb-filter-options">
+                          {[4, 3, 2]
+                            .filter((rating) => products.some((product) => getProductRating(product) >= rating))
+                            .map((rating) => {
+                              const count = products.filter((product) => getProductRating(product) >= rating).length;
+                              return (
+                                <label key={rating} className="mb-filter-checkbox-row mz-checkbox-row">
+                                  <span className="mb-filter-label-group">
+                                    <input
+                                      type="checkbox"
+                                      className="mb-checkbox mz-checkbox"
+                                      checked={minRating === rating}
+                                      onChange={() => setMinRating(minRating === rating ? null : rating)}
+                                    />
+                                    <span>{rating} & above</span>
+                                  </span>
+                                  <span className="mb-filter-count mz-filter-count">({count})</span>
+                                </label>
+                              );
+                            })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Discount Filter */}
+                  {products.some((product) => product.discountPrice && product.discountPrice < product.price) && (
+                    <div className="mb-filter-section mz-filter-section">
+                      <button
+                        type="button"
+                        className="mb-filter-section-title mz-filter-section-title"
+                        onClick={() => setDiscountOpen((o) => !o)}
+                      >
+                        <span>Discount</span>
+                        {discountOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      </button>
+
+                      {discountOpen && (
+                        <div className="mb-filter-options">
+                          {[10, 20, 30]
+                            .filter((pct) => products.some((product) => {
+                              const discountPrice = product.discountPrice;
+                              return Boolean(
+                                discountPrice &&
+                                discountPrice < product.price &&
+                                ((product.price - discountPrice) / product.price) * 100 >= pct
+                              );
+                            }))
+                            .map((pct) => {
+                              const count = products.filter((product) => {
+                                const discountPrice = product.discountPrice;
+                                if (!discountPrice || discountPrice >= product.price) return false;
+                                return ((product.price - discountPrice) / product.price) * 100 >= pct;
+                              }).length;
+                              return (
+                                <label key={pct} className="mb-filter-checkbox-row mz-checkbox-row">
+                                  <span className="mb-filter-label-group">
+                                    <input
+                                      type="checkbox"
+                                      className="mb-checkbox mz-checkbox"
+                                      checked={minDiscount === pct}
+                                      onChange={() => setMinDiscount(minDiscount === pct ? null : pct)}
+                                    />
+                                    <span>{pct}% or more</span>
+                                  </span>
+                                  <span className="mb-filter-count mz-filter-count">({count})</span>
+                                </label>
+                              );
+                            })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {products.some((product) => product.stockQuantity <= 0) && (
+                    <div className="mb-filter-section mz-filter-section">
+                      <label className="mb-filter-checkbox-row mz-checkbox-row">
+                        <span className="mb-filter-label-group">
+                          <input
+                            type="checkbox"
+                            className="mb-checkbox mz-checkbox"
+                            checked={inStockOnly}
+                            onChange={(event) => setInStockOnly(event.target.checked)}
+                          />
+                          <span>In stock only</span>
+                        </span>
+                      </label>
+                    </div>
+                  )}
+
+                  <div className="mz-filter-actions">
+                    <button type="button" className="mz-apply-filters" onClick={applyFilters}>
+                      Apply Filters
+                    </button>
                   </div>
-                )}
-              </div>
-              )}
-
-              {products.some((product) => product.stockQuantity <= 0) && (
-                <div className="mb-filter-section mz-filter-section">
-                  <label className="mb-filter-checkbox-row mz-checkbox-row">
-                    <span className="mb-filter-label-group">
-                      <input
-                        type="checkbox"
-                        className="mb-checkbox mz-checkbox"
-                        checked={inStockOnly}
-                        onChange={(event) => setInStockOnly(event.target.checked)}
-                      />
-                      <span>In stock only</span>
-                    </span>
-                  </label>
-                </div>
-              )}
-
-              <div className="mz-filter-actions">
-                <button type="button" className="mz-apply-filters" onClick={applyFilters}>
-                  Apply Filters
-                </button>
-              </div>
-            </aside>
+                </aside>
               </>
             )}
 
@@ -1519,6 +1951,9 @@ export default function CustomerDashboard() {
                   {appliedFilters.minRating !== null && <span>{appliedFilters.minRating}+ stars</span>}
                   {appliedFilters.minDiscount !== null && <span>{appliedFilters.minDiscount}%+ off</span>}
                   {appliedFilters.inStockOnly && <span>In stock</span>}
+                  {Object.entries(appliedFilters.attributes || {}).flatMap(([attrKey, vals]) =>
+                    (vals || []).map((val) => <span key={`${attrKey}-${val}`}>{val}</span>)
+                  )}
                   <button type="button" onClick={clearAllFilters}>Clear filters</button>
                 </div>
               )}
@@ -1592,7 +2027,7 @@ export default function CustomerDashboard() {
           <Link href="/about-us" data-testid="link-footer-about-us">
             About Us
           </Link>
-        
+
         </footer>
       </div>
 
@@ -1634,62 +2069,110 @@ export default function CustomerDashboard() {
                 </div>
               ) : (
                 <div>
-                  {cart.items.map((item) => (
-                    <div key={item.id} className="mb-cart-item-row">
-                      <img
-                        src={
-                          item.imageUrl ||
-                          'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=300'
-                        }
-                        alt={item.productName}
-                        className="mb-cart-item-thumb"
-                      />
-                      <div className="mb-cart-item-details">
-                        {item.comboGroupId && (
-                          <div className="mb-cart-item-combo">{item.comboName || 'Combo offer'}</div>
-                        )}
-                        <div className="mb-cart-item-name" title={item.productName}>
-                          {item.productName}
-                        </div>
-                        <div className="mb-cart-item-price">
-                          {formatCurrency(item.price)}
-                        </div>
-                        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <div className={`mb-cart-qty-ctrl ${item.comboGroupId ? 'is-combo-fixed' : ''}`}>
+                  {groupedCartEntries.map((entry) => {
+                    if (entry.type === 'combo') {
+                      return (
+                        <div key={entry.comboGroupId} className="mb-cart-combo-package">
+                          <div className="mb-cart-combo-header">
+                            <div className="mb-cart-combo-title">
+                              <Gift size={16} color="#063B2F" />
+                              <span>🎁 Combo Package: {entry.comboName}</span>
+                              <span className="mb-cart-combo-badge">({entry.items.length} items)</span>
+                            </div>
                             <button
                               type="button"
-                              className="mb-cart-qty-btn"
-                              onClick={() => handleUpdateCartQty(item.id, item.quantity - 1)}
-                              disabled={Boolean(item.comboGroupId)}
+                              className="mb-cart-item-remove-btn"
+                              onClick={(event) => {
+                                void handleRemoveComboGroup(entry.comboGroupId, event.currentTarget);
+                              }}
+                              disabled={removingCartItemId !== null}
+                              title={`Remove ${entry.comboName} from cart`}
+                              aria-label={`Remove ${entry.comboName} from cart`}
                             >
-                              <Minus size={12} />
-                            </button>
-                            <span className="mb-cart-qty-num">{item.quantity}</span>
-                            <button
-                              type="button"
-                              className="mb-cart-qty-btn"
-                              onClick={() => handleUpdateCartQty(item.id, item.quantity + 1)}
-                              disabled={Boolean(item.comboGroupId)}
-                            >
-                              <Plus size={12} />
+                              <Trash2 size={16} />
                             </button>
                           </div>
-                          <button
-                            type="button"
-                            className="mb-cart-item-remove-btn"
-                            onClick={(event) => {
-                              void handleRemoveCartItem(item.id, event.currentTarget);
-                            }}
-                            disabled={removingCartItemId !== null}
-                            title={item.comboGroupId ? `Remove ${item.comboName || 'combo'} from cart` : `Remove ${item.productName}`}
-                            aria-label={item.comboGroupId ? `Remove ${item.comboName || 'combo'} from cart` : `Remove ${item.productName} from cart`}
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          <div className="mb-cart-combo-items">
+                            {entry.items.map((cItem) => (
+                              <div key={cItem.id} className="mb-cart-combo-item-row">
+                                <img
+                                  src={
+                                    cItem.imageUrl ||
+                                    getJewelleryImage(null, cItem.productName, cItem.productId)
+                                  }
+                                  alt={cItem.productName}
+                                  className="mb-cart-combo-item-thumb"
+                                />
+                                <div className="mb-cart-combo-item-name">
+                                  {cItem.productName} {cItem.quantity > 1 ? `× ${cItem.quantity}` : ''}
+                                </div>
+                                <div className="mb-cart-combo-item-price">
+                                  {formatCurrency(cItem.price * cItem.quantity)}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="mb-cart-combo-footer">
+                            <span>Package Price</span>
+                            <span>{formatCurrency(entry.totalPrice)}</span>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    const item = entry.item;
+                    return (
+                      <div key={item.id} className="mb-cart-item-row">
+                        <img
+                          src={
+                            item.imageUrl ||
+                            getJewelleryImage(null, item.productName, item.productId)
+                          }
+                          alt={item.productName}
+                          className="mb-cart-item-thumb"
+                        />
+                        <div className="mb-cart-item-details">
+                          <div className="mb-cart-item-name" title={item.productName}>
+                            {item.productName}
+                          </div>
+                          <div className="mb-cart-item-price">
+                            {formatCurrency(item.price)}
+                          </div>
+                          <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div className="mb-cart-qty-ctrl">
+                              <button
+                                type="button"
+                                className="mb-cart-qty-btn"
+                                onClick={() => handleUpdateCartQty(item.id, item.quantity - 1)}
+                              >
+                                <Minus size={12} />
+                              </button>
+                              <span className="mb-cart-qty-num">{item.quantity}</span>
+                              <button
+                                type="button"
+                                className="mb-cart-qty-btn"
+                                onClick={() => handleUpdateCartQty(item.id, item.quantity + 1)}
+                              >
+                                <Plus size={12} />
+                              </button>
+                            </div>
+                            <button
+                              type="button"
+                              className="mb-cart-item-remove-btn"
+                              onClick={(event) => {
+                                void handleRemoveCartItem(item.id, event.currentTarget);
+                              }}
+                              disabled={removingCartItemId !== null}
+                              title={`Remove ${item.productName}`}
+                              aria-label={`Remove ${item.productName} from cart`}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   {/* Summary & Checkout */}
                   <div style={{ marginTop: 24, borderTop: '1px solid var(--mb-border)', paddingTop: 16 }}>
@@ -1704,6 +2187,7 @@ export default function CustomerDashboard() {
                       <span style={{ color: 'var(--mb-text-muted)' }}>Shipping:</span>
                       <span style={{ color: '#2B7A4B', fontWeight: 600 }}>Complimentary</span>
                     </div>
+
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14, paddingTop: 14, borderTop: '1px dashed var(--mb-border)', fontSize: 16 }}>
                       <span style={{ fontWeight: 700 }}>Estimated Total:</span>
@@ -2107,37 +2591,53 @@ export default function CustomerDashboard() {
             </div>
 
             <div className="mb-modal-body">
-              <div
-                style={{
-                  padding: 16,
-                  borderRadius: 14,
-                  background: 'linear-gradient(135deg, #FDECF0 0%, #F9DEE5 100%)',
-                  border: '1px dashed var(--mb-primary)',
-                  marginBottom: 20,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: 17, color: 'var(--mb-primary)' }}>WELCOME10</div>
-                  <div style={{ fontSize: 13, color: '#6A2E40', marginTop: 2 }}>
-                    Get 10% off your entire order (Min order ₹ 10.00)
-                  </div>
+              {loadingCoupons ? (
+                <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--mb-primary)' }}>
+                  <Loader2 size={24} className="animate-spin" style={{ margin: '0 auto 8px' }} />
+                  <div style={{ fontSize: 13 }}>Loading active promotional offers…</div>
                 </div>
-                <button
-                  type="button"
-                  className="mb-card-add-btn"
-                  style={{ width: 'auto', padding: '0 14px', height: 32, fontSize: 12 }}
-                  onClick={() => {
-                    setCouponCodeInput('WELCOME10');
-                    showToast('Coupon code WELCOME10 copied!');
-                  }}
-                >
-                  Use Code
-                </button>
-              </div>
-
+              ) : activeCoupons.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+                  {activeCoupons.map((coupon) => {
+                    const discountText = coupon.discountType === 'PERCENTAGE'
+                      ? `${coupon.discountValue}% OFF`
+                      : `₹ ${coupon.discountValue} OFF`;
+                    return (
+                      <div key={coupon.id} className="mb-dynamic-coupon-card">
+                        <div>
+                          <span className="mb-coupon-code-badge">{coupon.code}</span>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--mb-primary)', marginTop: 2 }}>
+                            {discountText} {coupon.description ? `• ${coupon.description}` : ''}
+                          </div>
+                          <div className="mb-coupon-meta">
+                            Min order: {formatCurrency(coupon.minimumOrderAmount || 0)}
+                            {coupon.maximumDiscount ? ` • Max savings: ${formatCurrency(coupon.maximumDiscount)}` : ''}
+                          </div>
+                          {coupon.expiryDate && (
+                            <div className="mb-coupon-expiry">
+                              <Sparkles size={12} />
+                              <span>Valid until {new Date(coupon.expiryDate).toLocaleDateString()}</span>
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          className="mb-card-add-btn"
+                          style={{ width: 'auto', padding: '0 16px', height: 34, fontSize: 12 }}
+                          onClick={() => handleApplyCouponDirect(coupon.code)}
+                        >
+                          Apply Code
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ padding: '16px 20px', borderRadius: 12, background: '#FAF7F2', border: '1px solid #E8DEC8', marginBottom: 20, textAlign: 'center', color: '#6A5A50', fontSize: 13 }}>
+                  No public promo codes active at the moment. Enter your private coupon or referral code below!
+                </div>
+              )}
+              *
               {/* Coupon Test Form */}
               <form onSubmit={handleApplyCoupon} style={{ display: 'flex', gap: 10 }}>
                 <input
@@ -2217,6 +2717,7 @@ export default function CustomerDashboard() {
               <button
                 type="button"
                 className="mb-modal-close-btn"
+
                 onClick={() => setActiveModal(null)}
               >
                 <X size={20} />

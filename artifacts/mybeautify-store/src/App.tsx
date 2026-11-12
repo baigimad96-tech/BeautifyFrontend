@@ -49,7 +49,6 @@ export { ErrorState } from '@/components/common/ErrorState';
 export { useProductActions } from '@/hooks/use-product-actions';
 export { ProductDetailPage as ProductDetail } from '@/pages/products/ProductDetailPage';
 export { CategoriesPage as Categories } from '@/pages/shop/CategoriesPage';
-export { BrandsPage as Brands } from '@/pages/shop/BrandsPage';
 export { HomePage as Home } from '@/pages/shop/HomePage';
 export { ShopPage as Shop } from '@/pages/shop/ShopPage';
 export { CartPage as Cart } from '@/pages/cart/CartPage';

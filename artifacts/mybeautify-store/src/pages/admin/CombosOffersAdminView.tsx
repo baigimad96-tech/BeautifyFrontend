@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarClock, CircleDollarSign, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { CalendarClock, CircleDollarSign, Loader2, Pencil, Plus, Search, Trash2, Upload, X } from 'lucide-react';
 import { fetchProducts } from '@/services/products/products.service';
+import { uploadImage } from '@/services/uploads/uploads.service';
 import {
   createAdminCombo,
   createAdminComboRule,
@@ -141,6 +142,33 @@ export function CombosOffersAdminView() {
   const [ruleDraft, setRuleDraft] = useState<RuleDraft>(EMPTY_RULE);
   const [feedback, setFeedback] = useState('');
   const [error, setError] = useState('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+
+  const handleImageFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setImageUploadError(null);
+    const accepted = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!accepted.includes(file.type)) {
+      setImageUploadError('Please select a JPEG, PNG, or WebP image.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setImageUploadError('Image must be 5 MB or smaller.');
+      return;
+    }
+    try {
+      setIsUploadingImage(true);
+      const url = await uploadImage(file);
+      changeCombo('imageUrl', url);
+    } catch (err) {
+      setImageUploadError(err instanceof Error ? err.message : 'Image upload failed.');
+    } finally {
+      setIsUploadingImage(false);
+      event.target.value = '';
+    }
+  };
 
   const combosQuery = useQuery({
     queryKey: ['admin-combos', search],
@@ -333,7 +361,48 @@ export function CombosOffersAdminView() {
                 <label className="form-field"><span>Combo name</span><input className="input" required maxLength={180} value={comboDraft.name} onChange={(event) => changeCombo('name', event.target.value)} /></label>
                 <label className="form-field"><span>URL slug</span><input className="input" required maxLength={220} value={comboDraft.slug} onChange={(event) => changeCombo('slug', event.target.value)} /></label>
                 <label className="form-field"><span>Description</span><textarea className="input" rows={3} maxLength={2000} value={comboDraft.description} onChange={(event) => changeCombo('description', event.target.value)} /></label>
-                <label className="form-field"><span>Combo image URL</span><input className="input" type="url" value={comboDraft.imageUrl} onChange={(event) => changeCombo('imageUrl', event.target.value)} /></label>
+                <div className="form-field admin-image-upload-field">
+                  <span>Combo image</span>
+                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap', marginTop: 4 }}>
+                    {comboDraft.imageUrl ? (
+                      <div style={{ position: 'relative', width: 88, height: 88, borderRadius: 8, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                        <img src={comboDraft.imageUrl} alt="Combo preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <button
+                          type="button"
+                          onClick={() => changeCombo('imageUrl', '')}
+                          style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                          title="Remove image"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : null}
+                    <div style={{ flex: 1, minWidth: 220 }}>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.9rem', border: '1px dashed #cbd5e1', borderRadius: 6, cursor: isUploadingImage ? 'not-allowed' : 'pointer', background: '#f8fafc', fontSize: 13, fontWeight: 500 }}>
+                        {isUploadingImage ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                        {isUploadingImage ? 'Uploading image…' : 'Choose image (JPEG, PNG, WebP ≤ 5MB)'}
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          style={{ display: 'none' }}
+                          disabled={isUploadingImage}
+                          onChange={handleImageFileChange}
+                        />
+                      </label>
+                      <div style={{ marginTop: 6 }}>
+                        <input
+                          className="input"
+                          type="url"
+                          placeholder="Or paste external image URL"
+                          value={comboDraft.imageUrl}
+                          onChange={(event) => changeCombo('imageUrl', event.target.value)}
+                          style={{ fontSize: 12, padding: '0.4rem 0.6rem' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  {imageUploadError && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{imageUploadError}</p>}
+                </div>
                 <div className="admin-combo-fields-2">
                   <label className="form-field"><span>Original price (₹)</span><input className="input" type="number" min="0" step="0.01" required value={comboDraft.originalPrice} onChange={(event) => changeCombo('originalPrice', event.target.value)} /></label>
                   <label className="form-field"><span>Selling price (₹)</span><input className="input" type="number" min="0" step="0.01" required value={comboDraft.sellingPrice} onChange={(event) => changeCombo('sellingPrice', event.target.value)} /></label>

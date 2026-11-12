@@ -47,6 +47,8 @@ export interface ProductResponse {
   brandName: string;
   categoryId: number;
   categoryName: string;
+  subcategoryId?: number;
+  subcategoryName?: string;
   imageUrl?: string;
   active: boolean;
   featured?: boolean;
@@ -59,12 +61,14 @@ export interface ProductResponse {
   reviewCount?: number;
   expiryDate?: string | null;
   averageRating: number;
+  attributes?: Record<string, string>;
   similarProducts?: SimilarProductResponse[];
 }
 
 export interface ProductFilterParams {
   query?: string;
   categoryId?: number;
+  subcategoryId?: number;
   brandId?: number;
   featured?: boolean;
   minPrice?: number;
@@ -72,6 +76,12 @@ export interface ProductFilterParams {
   page?: number;
   size?: number;
   sort?: string;
+  occasion?: string;
+  material?: string;
+  plating?: string;
+  stoneType?: string;
+  color?: string;
+  attributes?: Record<string, string>;
 }
 
 export interface CategoryResponse {
@@ -80,6 +90,8 @@ export interface CategoryResponse {
   description?: string;
   imageUrl?: string | null;
   active: boolean;
+  subcategoriesCount?: number;
+  subcategories?: any[];
 }
 
 export interface BrandResponse {
