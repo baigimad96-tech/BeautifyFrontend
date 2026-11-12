@@ -1579,7 +1579,7 @@ export default function CustomerDashboard() {
                     </button>
                     {occasionOpen && (
                       <div className="mb-filter-options">
-                        {COMMON_ATTRIBUTES.occasion.options.map((opt) => {
+                        {(COMMON_ATTRIBUTES.occasion.options || []).map((opt) => {
                           const count = getAttributeCount('occasion', opt);
                           const isChecked = (selectedAttributes.occasion || []).includes(opt);
                           return (
@@ -1613,7 +1613,7 @@ export default function CustomerDashboard() {
                     </button>
                     {materialOpen && (
                       <div className="mb-filter-options">
-                        {COMMON_ATTRIBUTES.material.options.map((opt) => {
+                        {(COMMON_ATTRIBUTES.material.options || []).map((opt) => {
                           const count = getAttributeCount('material', opt);
                           const isChecked = (selectedAttributes.material || []).includes(opt);
                           return (
@@ -1647,7 +1647,7 @@ export default function CustomerDashboard() {
                     </button>
                     {platingOpen && (
                       <div className="mb-filter-options">
-                        {COMMON_ATTRIBUTES.plating.options.map((opt) => {
+                        {(COMMON_ATTRIBUTES.plating.options || []).map((opt) => {
                           const count = getAttributeCount('plating', opt);
                           const isChecked = (selectedAttributes.plating || []).includes(opt);
                           return (
@@ -1681,7 +1681,7 @@ export default function CustomerDashboard() {
                     </button>
                     {stoneTypeOpen && (
                       <div className="mb-filter-options">
-                        {COMMON_ATTRIBUTES.stoneType.options.map((opt) => {
+                        {(COMMON_ATTRIBUTES.stoneType.options || []).map((opt) => {
                           const count = getAttributeCount('stoneType', opt);
                           const isChecked = (selectedAttributes.stoneType || []).includes(opt);
                           return (
@@ -1715,7 +1715,7 @@ export default function CustomerDashboard() {
                     </button>
                     {colorFinishOpen && (
                       <div className="mb-filter-options">
-                        {COMMON_ATTRIBUTES.colorFinish.options.map((opt) => {
+                        {(COMMON_ATTRIBUTES.colorFinish.options || []).map((opt) => {
                           const count = getAttributeCount('colorFinish', opt);
                           const isChecked = (selectedAttributes.colorFinish || []).includes(opt);
                           return (

@@ -97,14 +97,23 @@ export function CategoriesPage() {
   // Products query (filtered by category or subcategory from database)
   const productsQuery = useQuery({
     queryKey: ['category-products', categoryId, subcategoryId],
-    queryFn: () => {
+    queryFn: async () => {
       if (subcategoryId) {
         return fetchProducts({ subcategoryId, size: 50 });
       }
       if (categoryId) {
         return fetchProducts({ categoryId, size: 50 });
       }
-      return Promise.resolve({ items: [] as ProductResponse[] });
+      return {
+        content: [] as ProductResponse[],
+        totalElements: 0,
+        totalPages: 0,
+        page: 0,
+        size: 50,
+        first: true,
+        last: true,
+        empty: true,
+      };
     },
     enabled: !!categoryId || !!subcategoryId,
   });
@@ -192,7 +201,7 @@ export function CategoriesPage() {
 
     const currentCat = categoryDetailsQuery.data!;
     const currentSub = subcategoryDetailsQuery.data!;
-    const products: ProductResponse[] = productsQuery.data?.items ?? [];
+    const products: ProductResponse[] = productsQuery.data?.content ?? [];
     const siblingSubs: SubcategoryResponse[] = subcategoriesQuery.data ?? [];
 
     return (
@@ -375,7 +384,7 @@ export function CategoriesPage() {
     }
 
     const currentCat = categoryDetailsQuery.data!;
-    const products: ProductResponse[] = productsQuery.data?.items ?? [];
+    const products: ProductResponse[] = productsQuery.data?.content ?? [];
     const subcategories: SubcategoryResponse[] = subcategoriesQuery.data ?? [];
 
     return (

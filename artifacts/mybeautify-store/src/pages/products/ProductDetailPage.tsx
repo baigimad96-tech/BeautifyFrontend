@@ -67,7 +67,7 @@ import MalkazProductCard, {
   getProductSize,
   getProductRating,
 } from '@/components/products/MalkazProductCard';
-import { getAttributeLabel } from '@/constants/product-attributes';
+import { getAttributeLabel, PREFERRED_ATTRIBUTE_ORDER } from '@/constants/product-attributes';
 import '@/styles/customer-dashboard.css';
 import '@/styles/product-detail.css';
 import { HeaderSearchBar } from '@/components/common/HeaderSearchBar';
@@ -1512,10 +1512,36 @@ export function ProductDetailPage() {
                               <td className="mb-specs-val">{product.subcategoryName}</td>
                             </tr>
                           )}
+                          {/* Dimensions: Height, Length, Width */}
+                          {product.attributes?.height && (
+                            <tr>
+                              <td className="mb-specs-label">Height</td>
+                              <td className="mb-specs-val">{product.attributes.height.trim()}</td>
+                            </tr>
+                          )}
+                          {product.attributes?.length && (
+                            <tr>
+                              <td className="mb-specs-label">Length</td>
+                              <td className="mb-specs-val">{product.attributes.length.trim()}</td>
+                            </tr>
+                          )}
+                          {product.attributes?.width && (
+                            <tr>
+                              <td className="mb-specs-label">Width</td>
+                              <td className="mb-specs-val">{product.attributes.width.trim()}</td>
+                            </tr>
+                          )}
                           {/* Dynamic Jewellery Attributes */}
                           {product.attributes &&
                             Object.entries(product.attributes)
-                              .filter(([_, val]) => val && typeof val === 'string' && val.trim().length > 0)
+                              .filter(([key, val]) => !['height', 'length', 'width'].includes(key.toLowerCase()) && val && typeof val === 'string' && val.trim().length > 0)
+                              .sort(([keyA], [keyB]) => {
+                                const idxA = PREFERRED_ATTRIBUTE_ORDER.indexOf(keyA);
+                                const idxB = PREFERRED_ATTRIBUTE_ORDER.indexOf(keyB);
+                                const orderA = idxA === -1 ? 999 : idxA;
+                                const orderB = idxB === -1 ? 999 : idxB;
+                                return orderA - orderB;
+                              })
                               .map(([key, val]) => (
                                 <tr key={key}>
                                   <td className="mb-specs-label">{getAttributeLabel(key)}</td>
@@ -1551,7 +1577,14 @@ export function ProductDetailPage() {
                         >
                           {Object.entries(product.attributes)
                             .filter(([_, val]) => val && typeof val === 'string' && val.trim().length > 0)
-                            .slice(0, 4)
+                            .sort(([keyA], [keyB]) => {
+                              const idxA = PREFERRED_ATTRIBUTE_ORDER.indexOf(keyA);
+                              const idxB = PREFERRED_ATTRIBUTE_ORDER.indexOf(keyB);
+                              const orderA = idxA === -1 ? 999 : idxA;
+                              const orderB = idxB === -1 ? 999 : idxB;
+                              return orderA - orderB;
+                            })
+                            .slice(0, 5)
                             .map(([k, v]) => (
                               <span
                                 key={k}
@@ -1568,7 +1601,7 @@ export function ProductDetailPage() {
                                   border: '1px solid rgba(212, 175, 55, 0.35)',
                                 }}
                               >
-                                <span style={{ color: '#D4AF37' }}>✦</span> {v}
+                                <span style={{ color: '#D4AF37' }}>✦</span> {['height', 'length', 'width'].includes(k.toLowerCase()) ? `${getAttributeLabel(k)}: ${v}` : v}
                               </span>
                             ))}
                         </div>

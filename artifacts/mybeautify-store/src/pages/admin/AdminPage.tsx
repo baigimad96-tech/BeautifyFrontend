@@ -262,7 +262,13 @@ function CrudPanel<T extends { id: number }>({
     try {
       const payload = makePayload(values, fields);
       if (title === 'Product') {
-        payload.attributes = attributes;
+        const cleanAttributes: Record<string, string> = {};
+        for (const [k, v] of Object.entries(attributes)) {
+          if (v && typeof v === 'string' && v.trim().length > 0) {
+            cleanAttributes[k] = v.trim();
+          }
+        }
+        payload.attributes = cleanAttributes;
       }
       if (imageFile && !ACCEPTED_IMAGE_TYPES.has(imageFile.type)) {
         throw new Error('Choose a JPEG, PNG, or WebP image.');
@@ -328,18 +334,50 @@ function CrudPanel<T extends { id: number }>({
                     {Object.values(COMMON_ATTRIBUTES).map((attr) => (
                       <label key={attr.key} className="form-field">
                         <span>{attr.label}</span>
-                        <select
-                          className="select"
-                          value={attributes[attr.key] || ''}
-                          onChange={(e) => setAttributes((prev) => ({ ...prev, [attr.key]: e.target.value }))}
-                        >
-                          <option value="">Select {attr.label.toLowerCase()}</option>
-                          {attr.options.map((opt) => (
-                            <option key={opt} value={opt}>
-                              {opt}
-                            </option>
-                          ))}
-                        </select>
+                        {attr.type === 'text' ? (
+                          <input
+                            type="text"
+                            className="input"
+                            placeholder={attr.placeholder || `Enter ${attr.label.toLowerCase()}`}
+                            value={attributes[attr.key] || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setAttributes((prev) => {
+                                const next = { ...prev };
+                                if (val.trim()) {
+                                  next[attr.key] = val;
+                                } else {
+                                  delete next[attr.key];
+                                }
+                                return next;
+                              });
+                            }}
+                          />
+                        ) : (
+                          <select
+                            className="select"
+                            value={attributes[attr.key] || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setAttributes((prev) => {
+                                const next = { ...prev };
+                                if (val.trim()) {
+                                  next[attr.key] = val;
+                                } else {
+                                  delete next[attr.key];
+                                }
+                                return next;
+                              });
+                            }}
+                          >
+                            <option value="">Select {attr.label.toLowerCase()}</option>
+                            {(attr.options ?? []).map((opt) => (
+                              <option key={opt} value={opt}>
+                                {opt}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </label>
                     ))}
 
@@ -349,18 +387,50 @@ function CrudPanel<T extends { id: number }>({
                         <span>
                           {attr.label} <span className="admin-cat-attr-badge">{selectedCategoryName}</span>
                         </span>
-                        <select
-                          className="select"
-                          value={attributes[attr.key] || ''}
-                          onChange={(e) => setAttributes((prev) => ({ ...prev, [attr.key]: e.target.value }))}
-                        >
-                          <option value="">Select {attr.label.toLowerCase()}</option>
-                          {attr.options.map((opt) => (
-                            <option key={opt} value={opt}>
-                              {opt}
-                            </option>
-                          ))}
-                        </select>
+                        {attr.type === 'text' ? (
+                          <input
+                            type="text"
+                            className="input"
+                            placeholder={attr.placeholder || `Enter ${attr.label.toLowerCase()}`}
+                            value={attributes[attr.key] || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setAttributes((prev) => {
+                                const next = { ...prev };
+                                if (val.trim()) {
+                                  next[attr.key] = val;
+                                } else {
+                                  delete next[attr.key];
+                                }
+                                return next;
+                              });
+                            }}
+                          />
+                        ) : (
+                          <select
+                            className="select"
+                            value={attributes[attr.key] || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setAttributes((prev) => {
+                                const next = { ...prev };
+                                if (val.trim()) {
+                                  next[attr.key] = val;
+                                } else {
+                                  delete next[attr.key];
+                                }
+                                return next;
+                              });
+                            }}
+                          >
+                            <option value="">Select {attr.label.toLowerCase()}</option>
+                            {(attr.options ?? []).map((opt) => (
+                              <option key={opt} value={opt}>
+                                {opt}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </label>
                     ))}
                   </div>
