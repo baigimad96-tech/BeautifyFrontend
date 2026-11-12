@@ -18,6 +18,7 @@ import {
   rejectReview,
   type AdminReviewResponse,
 } from '@/services/reviews/reviews.service';
+import { normalizeList } from '@/utils/array';
 
 export function ReviewsAdminView() {
   const queryClient = useQueryClient();
@@ -32,7 +33,7 @@ export function ReviewsAdminView() {
     queryFn: () => fetchAdminReviews(page, 20),
   });
 
-  const reviews = data?.content ?? [];
+  const reviews = normalizeList<AdminReviewResponse>(data?.content ?? data);
   const totalPages = data?.totalPages ?? 1;
 
   const approveMutation = useMutation({

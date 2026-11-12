@@ -19,6 +19,7 @@ import {
   type OrderStatus,
 } from '@/services/orders/admin-orders.service';
 import type { AddressResponse, OrderItemResponse, OrderResponse } from '@/types/cart.types';
+import { normalizeList } from '@/utils/array';
 
 const ORDER_STATUS_LIST: OrderStatus[] = [
   'PENDING',
@@ -103,7 +104,7 @@ export function AdminOrdersView() {
     },
   });
 
-  const orders = data?.content ?? [];
+  const orders = normalizeList<OrderResponse>(data?.content ?? data);
   const totalPages = data?.totalPages ?? 1;
 
   const filteredOrders = orders.filter((order) => {

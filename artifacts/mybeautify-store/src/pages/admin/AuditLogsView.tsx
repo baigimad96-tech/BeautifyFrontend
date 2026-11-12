@@ -15,6 +15,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { fetchAuditLogs } from '@/services/audit/audit.service';
+import { normalizeList } from '@/utils/array';
 import type { AuditLogItem } from '@/types/audit.types';
 
 export function AuditLogsView() {
@@ -43,7 +44,7 @@ export function AuditLogsView() {
     },
   });
 
-  const logs = auditQuery.data?.content ?? [];
+  const logs = normalizeList<AuditLogItem>(auditQuery.data?.content ?? auditQuery.data);
   const totalItems = auditQuery.data?.totalElements ?? 0;
   const totalPages = auditQuery.data?.totalPages ?? 1;
 

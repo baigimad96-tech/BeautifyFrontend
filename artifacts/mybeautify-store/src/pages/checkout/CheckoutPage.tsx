@@ -59,9 +59,11 @@ import type {
   RazorpayPaymentSuccessPayload,
 } from '@/types/payment.types';
 import { CustomerProfilePill, HeaderCartButton } from '@/components/common';
-import { getJewelleryImage } from '@/lib/jewellery-images';
+import { getJewelleryImage, resolveImageUrl, handleImageError } from '@/lib/jewellery-images';
 import { animateTrashCan } from '@/lib/cart-animations';
 import { removeComboGroupFromCart } from '@/services/combos/combos.service';
+import { INDIAN_STATES_AND_UTS, getCitiesForState, findMatchingState } from '@/constants/indian-states-cities';
+import { extractArray } from '@/utils/array';
 import '@/styles/checkout.css';
 
 const getProductImage = (productId: number, imageUrl?: string, productName?: string) =>
@@ -128,6 +130,7 @@ export default function CheckoutPage() {
   const [formAddressLine1, setFormAddressLine1] = useState('');
   const [formAddressLine2, setFormAddressLine2] = useState('');
   const [formCity, setFormCity] = useState('');
+  const [customCity, setCustomCity] = useState('');
   const [formState, setFormState] = useState('');
   const [formPostalCode, setFormPostalCode] = useState('');
   const [formAddressType, setFormAddressType] = useState<'HOME' | 'WORK' | 'OTHER'>('HOME');
@@ -384,15 +387,46 @@ export default function CheckoutPage() {
     setShowAddressModal(true);
   };
 
+  const citiesForCheckout = useMemo(() => getCitiesForState(formState), [formState]);
+
+  const hasUnavailableCheckoutItems = useMemo(() => {
+    if (!cart?.items) return false;
+    return cart.items.some(
+      (item) => (item.availableStock !== undefined && item.availableStock <= 0) || (item.availableStock !== undefined && item.availableStock > 0 && item.quantity > item.availableStock)
+    );
+  }, [cart?.items]);
+
+  const handleRemoveAllUnavailableItems = async () => {
+    if (!cart?.items) return;
+    const unavailableItems = cart.items.filter(
+      (item) => (item.availableStock !== undefined && item.availableStock <= 0) || (item.availableStock !== undefined && item.availableStock > 0 && item.quantity > item.availableStock)
+    );
+    for (const item of unavailableItems) {
+      try {
+        if (item.comboGroupId) {
+          await removeComboGroupFromCart(item.comboGroupId);
+        } else {
+          await removeCartItem(item.id);
+        }
+      } catch (err) {
+        console.error('Failed to remove item', err);
+      }
+    }
+    await loadCartData();
+    showToast('Unavailable items removed from cart.');
+  };
+
   const handleStartAddNewAddress = () => {
     setIsAddingNewAddress(true);
     setEditingAddressId(null);
+    setAddressError(null);
     setFormFullName(user?.fullName || '');
     setFormPhoneNumber(user?.phoneNumber || '');
     setFormAddressLine1('');
     setFormAddressLine2('');
-    setFormCity('');
     setFormState('');
+    setFormCity('');
+    setCustomCity('');
     setFormPostalCode('');
     setFormAddressType('HOME');
     setFormIsDefault(true);
@@ -401,12 +435,24 @@ export default function CheckoutPage() {
   const handleStartEditAddress = (addr: AddressResponse) => {
     setIsAddingNewAddress(true);
     setEditingAddressId(addr.id);
+    setAddressError(null);
     setFormFullName(addr.fullName || '');
     setFormPhoneNumber(addr.phoneNumber || '');
     setFormAddressLine1(addr.addressLine1 || addr.street || '');
     setFormAddressLine2(addr.addressLine2 || '');
-    setFormCity(addr.city || '');
-    setFormState(addr.state || '');
+    const matchedState = findMatchingState(addr.state);
+    setFormState(matchedState);
+    const availableCities = getCitiesForState(matchedState);
+    if (addr.city && availableCities.includes(addr.city) && addr.city !== 'Other') {
+      setFormCity(addr.city);
+      setCustomCity('');
+    } else if (addr.city) {
+      setFormCity('Other');
+      setCustomCity(addr.city);
+    } else {
+      setFormCity('');
+      setCustomCity('');
+    }
     setFormPostalCode(addr.postalCode || addr.zipCode || '');
     setFormAddressType((addr.addressType as 'HOME' | 'WORK' | 'OTHER') || 'HOME');
     setFormIsDefault(Boolean(addr.isDefault));
@@ -415,8 +461,14 @@ export default function CheckoutPage() {
   // Save Address (Create or Update)
   const handleSaveAddress = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formFullName.trim() || !formPhoneNumber.trim() || !formAddressLine1.trim() || !formCity.trim() || !formPostalCode.trim()) {
-      setAddressError('Please fill in all required address fields.');
+    const effectiveCity = formCity === 'Other' ? customCity.trim() : formCity.trim();
+    if (!formFullName.trim() || !formPhoneNumber.trim() || !formAddressLine1.trim() || !formState.trim() || !effectiveCity || !formPostalCode.trim()) {
+      setAddressError('Please fill in all required address fields including state and city.');
+      return;
+    }
+
+    if (formPostalCode.trim().length !== 6 || !/^\d{6}$/.test(formPostalCode.trim())) {
+      setAddressError('Please enter a valid 6-digit Indian PIN Code.');
       return;
     }
 
@@ -428,8 +480,8 @@ export default function CheckoutPage() {
         phoneNumber: formPhoneNumber.trim(),
         addressLine1: formAddressLine1.trim(),
         addressLine2: formAddressLine2.trim(),
-        city: formCity.trim(),
-        state: formState.trim() || 'Madhya Pradesh',
+        city: effectiveCity,
+        state: formState.trim(),
         postalCode: formPostalCode.trim(),
         country: 'India',
         addressType: formAddressType,
@@ -502,6 +554,11 @@ export default function CheckoutPage() {
 
     if (!cart || !cart.items || cart.items.length === 0) {
       showToast('Your cart is empty. Add products to proceed.');
+      return;
+    }
+
+    if (hasUnavailableCheckoutItems) {
+      showToast('Please remove out of stock items from your cart to proceed.');
       return;
     }
 
@@ -1282,7 +1339,7 @@ export default function CheckoutPage() {
                 type="button"
                 className="mb-checkout-submit-btn"
                 onClick={handleProceedOrder}
-                disabled={submittingOrder || paymentVerifying || checkingStatus || hasActivePendingVerification || !cart || (cart.items || []).length === 0}
+                disabled={submittingOrder || paymentVerifying || checkingStatus || hasActivePendingVerification || !cart || (cart.items || []).length === 0 || hasUnavailableCheckoutItems}
               >
                 {submittingOrder ? (
                   <>
@@ -1362,6 +1419,19 @@ export default function CheckoutPage() {
               </div>
             ) : (
               <div className="mb-checkout-items-list">
+                {hasUnavailableCheckoutItems && (
+                  <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', marginBottom: 12, color: '#991B1B', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                    <span>Some items in your cart are currently out of stock.</span>
+                    <button
+                      type="button"
+                      className="button secondary small"
+                      style={{ fontSize: 11, padding: '3px 8px', color: '#991B1B', borderColor: '#FECACA', whiteSpace: 'nowrap' }}
+                      onClick={handleRemoveAllUnavailableItems}
+                    >
+                      Remove Unavailable
+                    </button>
+                  </div>
+                )}
                 {groupedCartEntries.map((entry) => {
                   if (entry.type === 'combo') {
                     return (
@@ -1432,6 +1502,16 @@ export default function CheckoutPage() {
                         <span className="mb-checkout-item-title">{item.productName}</span>
                         <span className="mb-checkout-item-qty">Qty: {item.quantity}</span>
                         <span className="mb-checkout-item-price">{formatCurrency(item.price)}</span>
+                        {item.availableStock !== undefined && item.availableStock <= 0 && (
+                          <div style={{ background: '#FEE2E2', color: '#B91C1C', padding: '2px 6px', borderRadius: 4, fontSize: 11, fontWeight: 700, width: 'fit-content', marginTop: 4 }}>
+                            Out of stock
+                          </div>
+                        )}
+                        {item.availableStock !== undefined && item.availableStock > 0 && item.quantity > item.availableStock && (
+                          <div style={{ background: '#FEF3C7', color: '#B45309', padding: '2px 6px', borderRadius: 4, fontSize: 11, fontWeight: 700, width: 'fit-content', marginTop: 4 }}>
+                            Only {item.availableStock} in stock
+                          </div>
+                        )}
                       </div>
                       <button
                         type="button"
@@ -1687,28 +1767,64 @@ export default function CheckoutPage() {
                   </div>
 
                   <div className="mb-checkout-field">
-                    <label className="mb-checkout-label">City *</label>
-                    <input
-                      type="text"
+                    <label className="mb-checkout-label">State / UT *</label>
+                    <select
                       className="mb-checkout-input"
-                      value={formCity}
-                      onChange={(e) => setFormCity(e.target.value)}
-                      placeholder="e.g. Bhopal"
+                      value={formState}
+                      onChange={(e) => {
+                        const nextState = e.target.value;
+                        setFormState(nextState);
+                        setFormCity('');
+                        setCustomCity('');
+                      }}
                       required
-                    />
+                    >
+                      <option value="">Select State / UT</option>
+                      {INDIAN_STATES_AND_UTS.map((st) => (
+                        <option key={st} value={st}>
+                          {st}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="mb-checkout-field">
-                    <label className="mb-checkout-label">State *</label>
-                    <input
-                      type="text"
+                    <label className="mb-checkout-label">City *</label>
+                    <select
                       className="mb-checkout-input"
-                      value={formState}
-                      onChange={(e) => setFormState(e.target.value)}
-                      placeholder="e.g. Madhya Pradesh"
+                      value={formCity}
+                      disabled={!formState}
+                      onChange={(e) => {
+                        const nextCity = e.target.value;
+                        setFormCity(nextCity);
+                        if (nextCity !== 'Other') {
+                          setCustomCity('');
+                        }
+                      }}
                       required
-                    />
+                    >
+                      <option value="">{formState ? 'Select City' : 'Select State first'}</option>
+                      {citiesForCheckout.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
                   </div>
+
+                  {formCity === 'Other' && (
+                    <div className="mb-checkout-field mb-checkout-form-full">
+                      <label className="mb-checkout-label">Custom City / Town / Village *</label>
+                      <input
+                        type="text"
+                        className="mb-checkout-input"
+                        value={customCity}
+                        onChange={(e) => setCustomCity(e.target.value)}
+                        placeholder="Enter your city, town, or village name"
+                        required
+                      />
+                    </div>
+                  )}
 
                   <div className="mb-checkout-field">
                     <label className="mb-checkout-label">PIN Code *</label>

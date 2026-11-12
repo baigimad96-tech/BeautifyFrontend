@@ -30,6 +30,7 @@ import {
 } from '@/services/subcategories/subcategories.service';
 import { uploadImage } from '@/services/uploads/uploads.service';
 import { getJewelleryImage } from '@/lib/jewellery-images';
+import { normalizeList } from '@/utils/array';
 import type { CategoryResponse } from '@/types/product.types';
 import type { SubcategoryRequest, SubcategoryResponse } from '@/types/subcategory.types';
 
@@ -94,8 +95,8 @@ export function CategoryManagementAdminView() {
       }),
   });
 
-  const categories: CategoryResponse[] = categoriesQuery.data ?? [];
-  const subcategories: SubcategoryResponse[] = subcategoriesQuery.data?.content ?? [];
+  const categories: CategoryResponse[] = normalizeList<CategoryResponse>(categoriesQuery.data);
+  const subcategories: SubcategoryResponse[] = normalizeList<SubcategoryResponse>(subcategoriesQuery.data?.content ?? subcategoriesQuery.data);
   const totalSubPages = subcategoriesQuery.data?.totalPages ?? 1;
 
   // ---------------------------------------------------------------------------
