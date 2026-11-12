@@ -65,6 +65,7 @@ import {
 } from '@/lib/api';
 import { fetchSubcategories } from '@/services/subcategories/subcategories.service';
 import type { SubcategoryResponse } from '@/types/subcategory.types';
+import { COMMON_ATTRIBUTES } from '@/constants/product-attributes';
 import '@/styles/customer-dashboard.css';
 import { HeaderSearchBar } from '@/components/common/HeaderSearchBar';
 import { AnnouncementBar } from '@/components/common/AnnouncementBar';
@@ -102,6 +103,7 @@ type AppliedProductFilters = {
   minRating: number | null;
   minDiscount: number | null;
   inStockOnly: boolean;
+  attributes: Record<string, string[]>;
 };
 
 const EMPTY_PRODUCT_FILTERS: AppliedProductFilters = {
@@ -112,6 +114,13 @@ const EMPTY_PRODUCT_FILTERS: AppliedProductFilters = {
   minRating: null,
   minDiscount: null,
   inStockOnly: false,
+  attributes: {
+    occasion: [],
+    material: [],
+    plating: [],
+    stoneType: [],
+    colorFinish: [],
+  },
 };
 
 const HERO_SLIDES = [
@@ -244,12 +253,26 @@ export default function CustomerDashboard() {
   const [appliedFilters, setAppliedFilters] = useState<AppliedProductFilters>(EMPTY_PRODUCT_FILTERS);
   const [sortBy, setSortBy] = useState<string>('popularity');
 
+  // Attribute filters state
+  const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string[]>>({
+    occasion: [],
+    material: [],
+    plating: [],
+    stoneType: [],
+    colorFinish: [],
+  });
+
   // Collapsible Filter sections
   const [categoryOpen, setCategoryOpen] = useState(true);
   const [brandOpen, setBrandOpen] = useState(true);
   const [priceOpen, setPriceOpen] = useState(true);
   const [ratingOpen, setRatingOpen] = useState(true);
   const [discountOpen, setDiscountOpen] = useState(true);
+  const [occasionOpen, setOccasionOpen] = useState(true);
+  const [materialOpen, setMaterialOpen] = useState(false);
+  const [platingOpen, setPlatingOpen] = useState(false);
+  const [stoneTypeOpen, setStoneTypeOpen] = useState(false);
+  const [colorFinishOpen, setColorFinishOpen] = useState(false);
   const [showMoreBrands, setShowMoreBrands] = useState(false);
 
   // Additional Data for Sub-Views
@@ -498,6 +521,39 @@ export default function CustomerDashboard() {
     setLocation(`${path}${query ? `?${query}` : ''}`);
   };
 
+  // Toggle attribute in filter
+  const toggleAttribute = (attrKey: string, value: string) => {
+    setSelectedAttributes((prev) => {
+      const currentList = prev[attrKey] || [];
+      const updated = currentList.includes(value)
+        ? currentList.filter((item) => item !== value)
+        : [...currentList, value];
+      return { ...prev, [attrKey]: updated };
+    });
+  };
+
+  // Helper to count products matching an attribute option
+  const getAttributeCount = useCallback(
+    (attrKey: string, val: string) => {
+      const valLower = val.toLowerCase().trim();
+      return products.filter((p) => {
+        if (p.attributes) {
+          const attrVal = p.attributes[attrKey] || p.attributes[attrKey.toLowerCase()];
+          if (attrVal && attrVal.toLowerCase().includes(valLower)) return true;
+          for (const storedVal of Object.values(p.attributes)) {
+            if (typeof storedVal === 'string' && storedVal.toLowerCase().includes(valLower)) {
+              return true;
+            }
+          }
+        }
+        if (p.description && p.description.toLowerCase().includes(valLower)) return true;
+        if (p.name && p.name.toLowerCase().includes(valLower)) return true;
+        return false;
+      }).length;
+    },
+    [products]
+  );
+
   // Clear all filters
   const clearAllFilters = () => {
     setCategoryFilter(null);
@@ -513,6 +569,13 @@ export default function CustomerDashboard() {
     setMinRating(null);
     setMinDiscount(null);
     setInStockOnly(false);
+    setSelectedAttributes({
+      occasion: [],
+      material: [],
+      plating: [],
+      stoneType: [],
+      colorFinish: [],
+    });
     setAppliedFilters(EMPTY_PRODUCT_FILTERS);
     setSearchQuery('');
   };
@@ -530,6 +593,7 @@ export default function CustomerDashboard() {
       minRating,
       minDiscount,
       inStockOnly,
+      attributes: { ...selectedAttributes },
     });
     setFilterOpen(false);
   };
@@ -590,6 +654,31 @@ export default function CustomerDashboard() {
       }
 
       if (appliedFilters.inStockOnly && p.stockQuantity <= 0) return false;
+
+      // Dynamic Attribute filters (Occasion, Material, Plating, Stone Type, Color / Finish)
+      if (appliedFilters.attributes) {
+        for (const [attrKey, selectedVals] of Object.entries(appliedFilters.attributes)) {
+          if (Array.isArray(selectedVals) && selectedVals.length > 0) {
+            const matchesAny = selectedVals.some((val) => {
+              const valLower = val.toLowerCase().trim();
+              if (p.attributes) {
+                const attrVal = p.attributes[attrKey] || p.attributes[attrKey.toLowerCase()];
+                if (attrVal && attrVal.toLowerCase().includes(valLower)) return true;
+                for (const storedVal of Object.values(p.attributes)) {
+                  if (typeof storedVal === 'string' && storedVal.toLowerCase().includes(valLower)) {
+                    return true;
+                  }
+                }
+              }
+              if (p.description && p.description.toLowerCase().includes(valLower)) return true;
+              if (p.name && p.name.toLowerCase().includes(valLower)) return true;
+              return false;
+            });
+            if (!matchesAny) return false;
+          }
+        }
+      }
+
       return true;
     });
   }, [products, appliedFilters, debouncedQuery, selectedSubcategory]);
@@ -619,6 +708,14 @@ export default function CustomerDashboard() {
       max: prices.length ? Math.ceil(Math.max(...prices)) : 0,
     };
   }, [products]);
+
+  const activeAttributeCount = useMemo(() => {
+    return Object.values(appliedFilters.attributes || {}).reduce(
+      (acc, list) => acc + (Array.isArray(list) ? list.length : 0),
+      0
+    );
+  }, [appliedFilters.attributes]);
+
   const activeFilterCount =
     Number(Boolean(appliedFilters.category)) +
     appliedFilters.brands.length +
@@ -626,7 +723,8 @@ export default function CustomerDashboard() {
     Number(appliedFilters.maxPrice < Number.MAX_SAFE_INTEGER) +
     Number(appliedFilters.minRating !== null) +
     Number(appliedFilters.minDiscount !== null) +
-    Number(appliedFilters.inStockOnly);
+    Number(appliedFilters.inStockOnly) +
+    activeAttributeCount;
 
   // Wishlist Toggle (Add/Remove)
   const handleToggleWishlist = async (product: ProductResponse) => {
@@ -1469,6 +1567,176 @@ export default function CustomerDashboard() {
                     </div>
                   )}
 
+                  {/* Occasion Filter */}
+                  <div className="mb-filter-section mz-filter-section">
+                    <button
+                      type="button"
+                      className="mb-filter-section-title mz-filter-section-title"
+                      onClick={() => setOccasionOpen((o) => !o)}
+                    >
+                      <span>Occasion</span>
+                      {occasionOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                    {occasionOpen && (
+                      <div className="mb-filter-options">
+                        {COMMON_ATTRIBUTES.occasion.options.map((opt) => {
+                          const count = getAttributeCount('occasion', opt);
+                          const isChecked = (selectedAttributes.occasion || []).includes(opt);
+                          return (
+                            <label key={opt} className="mb-filter-checkbox-row mz-checkbox-row">
+                              <span className="mb-filter-label-group">
+                                <input
+                                  type="checkbox"
+                                  className="mb-checkbox mz-checkbox"
+                                  checked={isChecked}
+                                  onChange={() => toggleAttribute('occasion', opt)}
+                                />
+                                <span>{opt}</span>
+                              </span>
+                              <span className="mb-filter-count mz-filter-count">({count})</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Material Filter */}
+                  <div className="mb-filter-section mz-filter-section">
+                    <button
+                      type="button"
+                      className="mb-filter-section-title mz-filter-section-title"
+                      onClick={() => setMaterialOpen((o) => !o)}
+                    >
+                      <span>Material</span>
+                      {materialOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                    {materialOpen && (
+                      <div className="mb-filter-options">
+                        {COMMON_ATTRIBUTES.material.options.map((opt) => {
+                          const count = getAttributeCount('material', opt);
+                          const isChecked = (selectedAttributes.material || []).includes(opt);
+                          return (
+                            <label key={opt} className="mb-filter-checkbox-row mz-checkbox-row">
+                              <span className="mb-filter-label-group">
+                                <input
+                                  type="checkbox"
+                                  className="mb-checkbox mz-checkbox"
+                                  checked={isChecked}
+                                  onChange={() => toggleAttribute('material', opt)}
+                                />
+                                <span>{opt}</span>
+                              </span>
+                              <span className="mb-filter-count mz-filter-count">({count})</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Plating Filter */}
+                  <div className="mb-filter-section mz-filter-section">
+                    <button
+                      type="button"
+                      className="mb-filter-section-title mz-filter-section-title"
+                      onClick={() => setPlatingOpen((o) => !o)}
+                    >
+                      <span>Plating</span>
+                      {platingOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                    {platingOpen && (
+                      <div className="mb-filter-options">
+                        {COMMON_ATTRIBUTES.plating.options.map((opt) => {
+                          const count = getAttributeCount('plating', opt);
+                          const isChecked = (selectedAttributes.plating || []).includes(opt);
+                          return (
+                            <label key={opt} className="mb-filter-checkbox-row mz-checkbox-row">
+                              <span className="mb-filter-label-group">
+                                <input
+                                  type="checkbox"
+                                  className="mb-checkbox mz-checkbox"
+                                  checked={isChecked}
+                                  onChange={() => toggleAttribute('plating', opt)}
+                                />
+                                <span>{opt}</span>
+                              </span>
+                              <span className="mb-filter-count mz-filter-count">({count})</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Stone Type Filter */}
+                  <div className="mb-filter-section mz-filter-section">
+                    <button
+                      type="button"
+                      className="mb-filter-section-title mz-filter-section-title"
+                      onClick={() => setStoneTypeOpen((o) => !o)}
+                    >
+                      <span>Stone Type</span>
+                      {stoneTypeOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                    {stoneTypeOpen && (
+                      <div className="mb-filter-options">
+                        {COMMON_ATTRIBUTES.stoneType.options.map((opt) => {
+                          const count = getAttributeCount('stoneType', opt);
+                          const isChecked = (selectedAttributes.stoneType || []).includes(opt);
+                          return (
+                            <label key={opt} className="mb-filter-checkbox-row mz-checkbox-row">
+                              <span className="mb-filter-label-group">
+                                <input
+                                  type="checkbox"
+                                  className="mb-checkbox mz-checkbox"
+                                  checked={isChecked}
+                                  onChange={() => toggleAttribute('stoneType', opt)}
+                                />
+                                <span>{opt}</span>
+                              </span>
+                              <span className="mb-filter-count mz-filter-count">({count})</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Color / Finish Filter */}
+                  <div className="mb-filter-section mz-filter-section">
+                    <button
+                      type="button"
+                      className="mb-filter-section-title mz-filter-section-title"
+                      onClick={() => setColorFinishOpen((o) => !o)}
+                    >
+                      <span>Color / Finish</span>
+                      {colorFinishOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                    {colorFinishOpen && (
+                      <div className="mb-filter-options">
+                        {COMMON_ATTRIBUTES.colorFinish.options.map((opt) => {
+                          const count = getAttributeCount('colorFinish', opt);
+                          const isChecked = (selectedAttributes.colorFinish || []).includes(opt);
+                          return (
+                            <label key={opt} className="mb-filter-checkbox-row mz-checkbox-row">
+                              <span className="mb-filter-label-group">
+                                <input
+                                  type="checkbox"
+                                  className="mb-checkbox mz-checkbox"
+                                  checked={isChecked}
+                                  onChange={() => toggleAttribute('colorFinish', opt)}
+                                />
+                                <span>{opt}</span>
+                              </span>
+                              <span className="mb-filter-count mz-filter-count">({count})</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
                   {/* Price Range Filter */}
                   {products.length > 0 && (
                     <div className="mb-filter-section mz-filter-section">
@@ -1683,6 +1951,9 @@ export default function CustomerDashboard() {
                   {appliedFilters.minRating !== null && <span>{appliedFilters.minRating}+ stars</span>}
                   {appliedFilters.minDiscount !== null && <span>{appliedFilters.minDiscount}%+ off</span>}
                   {appliedFilters.inStockOnly && <span>In stock</span>}
+                  {Object.entries(appliedFilters.attributes || {}).flatMap(([attrKey, vals]) =>
+                    (vals || []).map((val) => <span key={`${attrKey}-${val}`}>{val}</span>)
+                  )}
                   <button type="button" onClick={clearAllFilters}>Clear filters</button>
                 </div>
               )}

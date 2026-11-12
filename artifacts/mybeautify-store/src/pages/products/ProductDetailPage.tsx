@@ -67,6 +67,7 @@ import MalkazProductCard, {
   getProductSize,
   getProductRating,
 } from '@/components/products/MalkazProductCard';
+import { getAttributeLabel } from '@/constants/product-attributes';
 import '@/styles/customer-dashboard.css';
 import '@/styles/product-detail.css';
 import { HeaderSearchBar } from '@/components/common/HeaderSearchBar';
@@ -1262,7 +1263,7 @@ export function ProductDetailPage() {
               </div>
 
               {/* Short description */}
-              <p className="mb-detail-description">
+              <p className="mb-detail-description" style={{ whiteSpace: 'pre-line' }}>
                 {product.description ||
                   `${product.name} from the MALKAZ fine jewellery collection.`}
               </p>
@@ -1465,7 +1466,7 @@ export function ProductDetailPage() {
                   <div className="mb-panel-grid-2col">
                     <div className="mb-panel-col-main">
                       <h3 className="mb-col-heading">Product Overview</h3>
-                      <p className="mb-panel-desc">
+                      <p className="mb-panel-desc" style={{ whiteSpace: 'pre-line' }}>
                         {product.description || `${product.name} from the MALKAZ fine jewellery collection.`}
                       </p>
 
@@ -1505,10 +1506,28 @@ export function ProductDetailPage() {
                             <td className="mb-specs-label">Category</td>
                             <td className="mb-specs-val">{product.categoryName}</td>
                           </tr>
-                          <tr>
-                            <td className="mb-specs-label">Size</td>
-                            <td className="mb-specs-val">{displaySize}</td>
-                          </tr>
+                          {product.subcategoryName && (
+                            <tr>
+                              <td className="mb-specs-label">Subcategory</td>
+                              <td className="mb-specs-val">{product.subcategoryName}</td>
+                            </tr>
+                          )}
+                          {/* Dynamic Jewellery Attributes */}
+                          {product.attributes &&
+                            Object.entries(product.attributes)
+                              .filter(([_, val]) => val && typeof val === 'string' && val.trim().length > 0)
+                              .map(([key, val]) => (
+                                <tr key={key}>
+                                  <td className="mb-specs-label">{getAttributeLabel(key)}</td>
+                                  <td className="mb-specs-val">{val.trim()}</td>
+                                </tr>
+                              ))}
+                          {(!product.attributes || !product.attributes.size) && displaySize && (
+                            <tr>
+                              <td className="mb-specs-label">Size</td>
+                              <td className="mb-specs-val">{displaySize}</td>
+                            </tr>
+                          )}
                           <tr>
                             <td className="mb-specs-label">SKU</td>
                             <td className="mb-specs-val">{product.sku}</td>
@@ -1519,6 +1538,41 @@ export function ProductDetailPage() {
                           </tr>
                         </tbody>
                       </table>
+
+                      {product.attributes && Object.keys(product.attributes).length > 0 && (
+                        <div
+                          className="mb-attribute-badges-wrap"
+                          style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: '6px',
+                            margin: '14px 0',
+                          }}
+                        >
+                          {Object.entries(product.attributes)
+                            .filter(([_, val]) => val && typeof val === 'string' && val.trim().length > 0)
+                            .slice(0, 4)
+                            .map(([k, v]) => (
+                              <span
+                                key={k}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                  padding: '4px 10px',
+                                  borderRadius: '999px',
+                                  background: 'rgba(10, 59, 44, 0.08)',
+                                  color: '#0A3B2C',
+                                  border: '1px solid rgba(212, 175, 55, 0.35)',
+                                }}
+                              >
+                                <span style={{ color: '#D4AF37' }}>✦</span> {v}
+                              </span>
+                            ))}
+                        </div>
+                      )}
 
                       <div className="mb-specs-highlights-card">
                         <div className="mb-specs-highlight-item">

@@ -61,6 +61,7 @@ export interface ProductResponse {
   reviewCount?: number;
   expiryDate?: string | null;
   averageRating: number;
+  attributes?: Record<string, string>;
   similarProducts?: SimilarProductResponse[];
 }
 
@@ -75,6 +76,12 @@ export interface ProductFilterParams {
   page?: number;
   size?: number;
   sort?: string;
+  occasion?: string;
+  material?: string;
+  plating?: string;
+  stoneType?: string;
+  color?: string;
+  attributes?: Record<string, string>;
 }
 
 export interface CategoryResponse {

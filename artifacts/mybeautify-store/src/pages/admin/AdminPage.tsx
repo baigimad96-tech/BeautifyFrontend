@@ -8,6 +8,11 @@ import { getJewelleryImage } from '@/lib/jewellery-images';
 import { uploadImage } from '@/services/uploads/uploads.service';
 import { fetchAdminDashboard } from '@/services/admin/dashboard.service';
 import { fetchAdminSubcategories } from '@/services/subcategories/subcategories.service';
+import {
+  COMMON_ATTRIBUTES,
+  getCategoryAttributes,
+  generateProductDescriptionTemplate,
+} from '@/constants/product-attributes';
 import { AuditLogsView } from './AuditLogsView';
 import { DeveloperToolsView } from './DeveloperToolsView';
 import { CombosOffersAdminView } from './CombosOffersAdminView';
@@ -34,6 +39,7 @@ type AdminProduct = {
   active: boolean;
   featured: boolean;
   size?: string;
+  attributes?: Record<string, string>;
 };
 
 type AdminCategory = {
@@ -149,6 +155,7 @@ function CrudPanel<T extends { id: number }>({
   items,
   fields,
   columns,
+  categories,
 }: {
   title: string;
   endpoint: string;
@@ -156,15 +163,40 @@ function CrudPanel<T extends { id: number }>({
   items: T[];
   fields: FieldSpec[];
   columns: Column<T>[];
+  categories?: AdminCategory[];
 }) {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<T | null>(null);
   const [values, setValues] = useState<FormValues>({});
+  const [attributes, setAttributes] = useState<Record<string, string>>({});
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+
+  const selectedCategory = categories?.find((c) => String(c.id) === String(values.categoryId));
+  const selectedCategoryName = selectedCategory?.name;
+  const categorySpecificAttributes = getCategoryAttributes(selectedCategoryName);
+
+  const handleGenerateDescription = () => {
+    const productName = String(values.name || '').trim();
+    if (!productName) {
+      alert('Please enter a Product Name first.');
+      return;
+    }
+    const currentDesc = String(values.description || '').trim();
+    if (currentDesc && !window.confirm('Replace current description with the auto-generated luxury template?')) {
+      return;
+    }
+    const generated = generateProductDescriptionTemplate(
+      productName,
+      selectedCategoryName || '',
+      attributes
+    );
+    setValues((current) => ({ ...current, description: generated }));
+  };
+
   useEffect(() => {
     if (!imageFile) {
       setImagePreviewUrl(null);
@@ -192,6 +224,7 @@ function CrudPanel<T extends { id: number }>({
       await queryClient.invalidateQueries({ queryKey });
       setEditing(null);
       setValues({});
+      setAttributes({});
       setImageFile(null);
       if (imageInputRef.current) imageInputRef.current.value = '';
       setError('');
@@ -206,6 +239,7 @@ function CrudPanel<T extends { id: number }>({
   const beginCreate = () => {
     setEditing(null);
     setValues(Object.fromEntries(fields.map((field) => [field.key, field.defaultValue ?? (field.type === 'checkbox' ? false : '')])));
+    setAttributes({});
     setImageFile(null);
     if (imageInputRef.current) imageInputRef.current.value = '';
     setMessage('');
@@ -214,6 +248,8 @@ function CrudPanel<T extends { id: number }>({
   const beginEdit = (item: T) => {
     setEditing(item);
     setValues(Object.fromEntries(fields.map((field) => [field.key, inputValue(item, field)])));
+    const itemAttributes = (item as any)?.attributes;
+    setAttributes(itemAttributes && typeof itemAttributes === 'object' ? { ...itemAttributes } : {});
     setImageFile(null);
     if (imageInputRef.current) imageInputRef.current.value = '';
     setMessage('');
@@ -225,6 +261,9 @@ function CrudPanel<T extends { id: number }>({
     setError('');
     try {
       const payload = makePayload(values, fields);
+      if (title === 'Product') {
+        payload.attributes = attributes;
+      }
       if (imageFile && !ACCEPTED_IMAGE_TYPES.has(imageFile.type)) {
         throw new Error('Choose a JPEG, PNG, or WebP image.');
       }
@@ -259,57 +298,145 @@ function CrudPanel<T extends { id: number }>({
         <button type="button" className="button secondary small" onClick={beginCreate}><Plus size={15} /> Add new</button>
       </div>
       <form className="admin-form" onSubmit={submit}>
-        {fields.map((field) => <label className={`form-field ${field.type === 'checkbox' ? 'admin-checkbox-field' : ''}`} key={field.key}>
-          {field.type === 'checkbox'
-            ? <><input type="checkbox" checked={values[field.key] === true} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.checked }))} />{field.label}</>
-            : field.type === 'file'
-              ? <><span>{field.label}</span>
-                <input
-                  ref={imageInputRef}
-                  className="input"
-                  type="file"
-                  accept={field.accept}
-                  disabled={mutation.isPending}
-                  onChange={(event) => {
-                    const file = event.currentTarget.files?.[0] ?? null;
-                    if (!file) return;
-                    if (!ACCEPTED_IMAGE_TYPES.has(file.type)) {
-                      setImageFile(null);
-                      setError('Choose a JPEG, PNG, or WebP image.');
-                      event.currentTarget.value = '';
-                      return;
-                    }
-                    if (file.size > MAX_IMAGE_SIZE_BYTES) {
-                      setImageFile(null);
-                      setError('Image files must be 5 MB or smaller.');
-                      event.currentTarget.value = '';
-                      return;
-                    }
-                    setImageFile(file);
-                    setError('');
-                    setMessage('');
-                  }}
-                />
-                {field.hint && <small className="admin-image-hint">{field.hint}</small>}
-                {(imagePreviewUrl || (typeof values.imageUrl === 'string' && values.imageUrl)) && (
-                  <img
-                    className="admin-image-preview"
-                    src={imagePreviewUrl ?? String(values.imageUrl)}
-                    alt={imageFile ? `Preview of ${imageFile.name}` : 'Current image'}
-                  />
-                )}
-              </>
-            : <><span>{field.label}</span>
-              {field.type === 'textarea'
-                ? <textarea className="input" rows={3} required={field.required} value={String(values[field.key] ?? '')} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))} />
-                : field.type === 'select'
-                  ? <select className="select" required={field.required} value={String(values[field.key] ?? '')} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))}>
-                    <option value="">Select {field.label.toLowerCase()}</option>
-                    {(field.options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                  </select>
-                  : <input className="input" type={field.type === 'list' ? 'text' : field.type} min={field.min} step={field.step} required={field.required} value={String(values[field.key] ?? '')} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))} />}
-            </>}
-        </label>)}
+        {fields.map((field) => {
+          const isProduct = title === 'Product';
+          const isDescription = field.key === 'description';
+
+          return (
+            <div key={field.key} style={{ display: 'contents' }}>
+              {isProduct && isDescription && (
+                <div className="admin-product-attributes-card" style={{ gridColumn: '1 / -1' }}>
+                  <div className="admin-attributes-header">
+                    <div>
+                      <h4 className="admin-attributes-title">Dynamic Product Specifications</h4>
+                      <p className="admin-attributes-subtitle">
+                        Select jewellery attributes{selectedCategoryName ? ` for ${selectedCategoryName}` : ''}. These are automatically saved and shown in customer filters and product details.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="generate-template-btn"
+                      onClick={handleGenerateDescription}
+                      title="Generate luxury description using product name and selected attributes"
+                    >
+                      <Sparkles size={14} /> ✨ Auto-Generate Description Template
+                    </button>
+                  </div>
+
+                  <div className="admin-attributes-grid">
+                    {/* Common Attributes */}
+                    {Object.values(COMMON_ATTRIBUTES).map((attr) => (
+                      <label key={attr.key} className="form-field">
+                        <span>{attr.label}</span>
+                        <select
+                          className="select"
+                          value={attributes[attr.key] || ''}
+                          onChange={(e) => setAttributes((prev) => ({ ...prev, [attr.key]: e.target.value }))}
+                        >
+                          <option value="">Select {attr.label.toLowerCase()}</option>
+                          {attr.options.map((opt) => (
+                            <option key={opt} value={opt}>
+                              {opt}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ))}
+
+                    {/* Category Specific Attributes */}
+                    {categorySpecificAttributes.map((attr) => (
+                      <label key={attr.key} className="form-field">
+                        <span>
+                          {attr.label} <span className="admin-cat-attr-badge">{selectedCategoryName}</span>
+                        </span>
+                        <select
+                          className="select"
+                          value={attributes[attr.key] || ''}
+                          onChange={(e) => setAttributes((prev) => ({ ...prev, [attr.key]: e.target.value }))}
+                        >
+                          <option value="">Select {attr.label.toLowerCase()}</option>
+                          {attr.options.map((opt) => (
+                            <option key={opt} value={opt}>
+                              {opt}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <label className={`form-field ${field.type === 'checkbox' ? 'admin-checkbox-field' : ''}`}>
+                {field.type === 'checkbox'
+                  ? <><input type="checkbox" checked={values[field.key] === true} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.checked }))} />{field.label}</>
+                  : field.type === 'file'
+                    ? <><span>{field.label}</span>
+                      <input
+                        ref={imageInputRef}
+                        className="input"
+                        type="file"
+                        accept={field.accept}
+                        disabled={mutation.isPending}
+                        onChange={(event) => {
+                          const file = event.currentTarget.files?.[0] ?? null;
+                          if (!file) return;
+                          if (!ACCEPTED_IMAGE_TYPES.has(file.type)) {
+                            setImageFile(null);
+                            setError('Choose a JPEG, PNG, or WebP image.');
+                            event.currentTarget.value = '';
+                            return;
+                          }
+                          if (file.size > MAX_IMAGE_SIZE_BYTES) {
+                            setImageFile(null);
+                            setError('Image files must be 5 MB or smaller.');
+                            event.currentTarget.value = '';
+                            return;
+                          }
+                          setImageFile(file);
+                          setError('');
+                          setMessage('');
+                        }}
+                      />
+                      {field.hint && <small className="admin-image-hint">{field.hint}</small>}
+                      {(imagePreviewUrl || (typeof values.imageUrl === 'string' && values.imageUrl)) && (
+                        <img
+                          className="admin-image-preview"
+                          src={imagePreviewUrl ?? String(values.imageUrl)}
+                          alt={imageFile ? `Preview of ${imageFile.name}` : 'Current image'}
+                        />
+                      )}
+                    </>
+                  : <>
+                    {isProduct && isDescription ? (
+                      <div className="admin-desc-header-row">
+                        <span>{field.label}</span>
+                        <button
+                          type="button"
+                          className="generate-template-btn"
+                          style={{ padding: '3px 10px', fontSize: '11px' }}
+                          onClick={handleGenerateDescription}
+                          title="Auto-fill description from attributes"
+                        >
+                          <Sparkles size={12} /> ✨ Generate Description
+                        </button>
+                      </div>
+                    ) : (
+                      <span>{field.label}</span>
+                    )}
+                    {field.type === 'textarea'
+                      ? <textarea className="input" rows={isDescription ? 7 : 3} required={field.required} value={String(values[field.key] ?? '')} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))} />
+                      : field.type === 'select'
+                        ? <select className="select" required={field.required} value={String(values[field.key] ?? '')} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))}>
+                          <option value="">Select {field.label.toLowerCase()}</option>
+                          {(field.options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                        </select>
+                        : <input className="input" type={field.type === 'list' ? 'text' : field.type} min={field.min} step={field.step} required={field.required} value={String(values[field.key] ?? '')} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))} />}
+                  </>}
+              </label>
+            </div>
+          );
+        })}
         {error && <p className="form-message" role="alert">{error}</p>}
         {message && <p className="admin-success" role="status">{message}</p>}
         <div className="admin-form-actions">
@@ -456,7 +583,7 @@ function AdminConsole() {
         ? <div className="error-state" role="alert"><h3>We could not load the admin data.</h3><p>{getMessage(productsQuery.error ?? categoriesQuery.error)}</p><button className="button secondary" onClick={() => { void productsQuery.refetch(); void categoriesQuery.refetch(); }}>Try again</button></div>
         : section === 'products' && productsQuery.data && categoriesQuery.data
           ? <>
-            <CrudPanel title="Product" endpoint="/api/admin/products" queryKey={['admin-products']} items={productsQuery.data.items} fields={productFields} columns={[
+            <CrudPanel title="Product" endpoint="/api/admin/products" queryKey={['admin-products']} items={productsQuery.data.items} fields={productFields} categories={categoriesQuery.data.items} columns={[
               { label: 'Piece', render: (item) => <div className="admin-product-cell"><img className="admin-product-thumb" src={getJewelleryImage(item.imageUrl, item.name, item.id)} alt="" loading="lazy" onError={(event) => { event.currentTarget.src = getJewelleryImage(null, item.name, item.id); }} /><span>{item.name}</span></div> },
               { label: 'SKU', render: (item) => item.sku },
               { label: 'Price', render: (item) => `₹${Number(item.discountPrice ?? item.price).toLocaleString('en-IN', { maximumFractionDigits: 2 })}` },
