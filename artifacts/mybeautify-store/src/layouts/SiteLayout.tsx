@@ -5,6 +5,7 @@ import { useGetCart, useGetCategories, type Category } from '@workspace/api-clie
 import { BrandMark } from '@/components/common/BrandMark';
 import { HeaderSearchBar } from '@/components/common/HeaderSearchBar';
 import { AnnouncementBar } from '@/components/common/AnnouncementBar';
+import { WhatsAppButton } from '@/components/common/WhatsAppButton';
 import { toArray } from '@/utils/array';
 import { hasAdminRole } from '@/utils/auth';
 import { STORAGE_KEYS } from '@/constants';
@@ -39,6 +40,7 @@ export function SiteLayout({ children }: SiteLayoutProps) {
     ['Combos & Offers', '/combos'],
     ['Categories', '/categories'],
     ['About Us', '/about'],
+    ['Help & Support', '/help-support'],
     ['Our collection', '/#edit'],
   ];
 
@@ -103,6 +105,7 @@ export function SiteLayout({ children }: SiteLayoutProps) {
             placeholder="Search jewellery, collections and more..."
             className="site-nav-search"
           />
+          <WhatsAppButton variant="header" />
           <Link href="/account" className="icon-button" aria-label="Account" data-testid="link-account">
             <UserRound size={18} />
           </Link>
@@ -207,6 +210,10 @@ export function SiteLayout({ children }: SiteLayoutProps) {
           &nbsp;·&nbsp;{' '}
           <Link href="/about" data-testid="link-footer-about-us">
             About Us
+          </Link>{' '}
+          &nbsp;·&nbsp;{' '}
+          <Link href="/help-support" data-testid="link-footer-help-support">
+            Help &amp; Support
           </Link>{' '}
           &nbsp;·&nbsp;{' '}
           <Link href="/privacy-conditions" data-testid="link-footer-privacy-conditions">

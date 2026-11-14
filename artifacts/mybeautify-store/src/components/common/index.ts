@@ -5,3 +5,4 @@ export * from './ErrorBoundary';
 export * from './CustomerProfilePill';
 export * from './HeaderCartButton';
 export * from './HeaderSearchBar';
+export * from './WhatsAppButton';

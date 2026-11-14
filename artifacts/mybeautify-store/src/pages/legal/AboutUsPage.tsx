@@ -12,9 +12,12 @@ import {
   Award,
 } from 'lucide-react';
 import { SiteLayout } from '@/layouts/SiteLayout';
+import { useSiteContent } from '@/hooks/use-site-content';
 import './about-us.css';
 
 export default function AboutUsPage() {
+  const { aboutUs } = useSiteContent();
+
   // Smooth scroll to top on mount and set SEO meta tags
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -51,22 +54,30 @@ export default function AboutUsPage() {
               <span>Zainab Khan Enterprises</span>
             </div>
             <h1 id="about-hero-title" className="malkaz-about-hero-title">
-              About MALKAZ
+              {aboutUs.heroTitle || 'About MALKAZ'}
             </h1>
-            <p className="malkaz-about-hero-subtitle">Where Luxury Meets Trust</p>
+            <p className="malkaz-about-hero-subtitle">{aboutUs.heroSubtitle || 'Where Luxury Meets Trust'}</p>
             <div className="malkaz-about-ornament" aria-hidden="true">
               ◆ ❖ ◆
             </div>
             <p className="malkaz-about-hero-desc">
-              Founded under <strong>Zainab Khan Enterprises</strong>, <strong>MALKAZ</strong> represents
-              the pinnacle of royal luxury jewellery and timeless design aesthetics. Guided by founder
-              Zainab Khan’s extensive 7+ years of experience in the fashion and styling industry, MALKAZ
-              was established to bridge the gap between regal grandeur and accessible, uncompromising craft.
+              {aboutUs.brandIntro || (
+                <>
+                  Founded under <strong>Zainab Khan Enterprises</strong>, <strong>MALKAZ</strong> represents
+                  the pinnacle of royal luxury jewellery and timeless design aesthetics. Guided by founder
+                  Zainab Khan’s extensive 7+ years of experience in the fashion and styling industry, MALKAZ
+                  was established to bridge the gap between regal grandeur and accessible, uncompromising craft.
+                </>
+              )}
             </p>
             <div className="malkaz-about-founder-tag">
               <Crown size={15} aria-hidden="true" />
               <span>
-                Founder &amp; Creative Director: <strong>Zainab Khan</strong> · 7+ Years Fashion Industry Experience
+                {aboutUs.founderTag || (
+                  <>
+                    Founder &amp; Creative Director: <strong>Zainab Khan</strong> · 7+ Years Fashion Industry Experience
+                  </>
+                )}
               </span>
             </div>
           </div>
@@ -79,13 +90,17 @@ export default function AboutUsPage() {
               <div className="malkaz-trust-header">
                 <p className="eyebrow">OUR CORE ETHOS</p>
                 <h2 id="trust-callout-title" className="malkaz-trust-title">
-                  Quality Over Quantity
+                  {aboutUs.qualityTitle || 'Quality Over Quantity'}
                 </h2>
                 <p className="malkaz-trust-copy">
-                  At MALKAZ, customer satisfaction is not merely a benchmark—it is our crowning commitment.
-                  Every piece that carries our seal is meticulously inspected to uphold royal standards of
-                  durability, shine, and comfort. We believe in complete transparency and honor every promise
-                  we make to our patrons.
+                  {aboutUs.qualityBody || (
+                    <>
+                      At MALKAZ, customer satisfaction is not merely a benchmark—it is our crowning commitment.
+                      Every piece that carries our seal is meticulously inspected to uphold royal standards of
+                      durability, shine, and comfort. We believe in complete transparency and honor every promise
+                      we make to our patrons.
+                    </>
+                  )}
                 </p>
                 <p className="malkaz-trust-copy">
                   Learn more about our shipping commitments, exchange policies, and service standards in our{' '}
@@ -204,19 +219,23 @@ export default function AboutUsPage() {
                   <Crown size={56} />
                 </div>
                 <blockquote className="malkaz-story-imagery-quote">
-                  “A mother’s dignity is a daughter’s eternal crown.”
+                  {aboutUs.storyQuote ? `“${aboutUs.storyQuote.replace(/^[“"]+|[”"]+$/g, '')}”` : '“A mother’s dignity is a daughter’s eternal crown.”'}
                 </blockquote>
                 <p className="malkaz-story-imagery-sub">Zainab Khan · Founder</p>
               </div>
 
               <div className="malkaz-story-text-content">
                 <p className="eyebrow">AN HEIRLOOM LEGACY</p>
-                <h2 id="story-title">The Story Behind the Name Malkaz</h2>
+                <h2 id="story-title">{aboutUs.storyTitle || 'The Story Behind the Name Malkaz'}</h2>
                 <p>
-                  The name <strong>MALKAZ</strong> carries an intimate, deeply emotional legacy. It is born
-                  from a heartfelt tribute honoring founder Zainab Khan’s beloved mother, <strong>Malka</strong>—a
-                  matriarch revered for her quiet resilience, regal grace, and unconditional warmth—alongside the
-                  unwavering guidance and lifelong companionship of her elder sister.
+                  {aboutUs.storyBody || (
+                    <>
+                      The name <strong>MALKAZ</strong> carries an intimate, deeply emotional legacy. It is born
+                      from a heartfelt tribute honoring founder Zainab Khan’s beloved mother, <strong>Malka</strong>—a
+                      matriarch revered for her quiet resilience, regal grace, and unconditional warmth—alongside the
+                      unwavering guidance and lifelong companionship of her elder sister.
+                    </>
+                  )}
                 </p>
                 <p>
                   In Urdu and Arabic heritage, <em>“Malka”</em> translates directly to <strong>Queen</strong>—the
@@ -237,10 +256,9 @@ export default function AboutUsPage() {
             <div className="malkaz-mission-card">
               <div className="malkaz-mission-header">
                 <p className="eyebrow">OUR IMPACT &amp; VISION</p>
-                <h2 id="mission-title">More Than a Brand – A Mission to Empower Women</h2>
+                <h2 id="mission-title">{aboutUs.missionTitle || 'More Than a Brand – A Mission to Empower Women'}</h2>
                 <p>
-                  MALKAZ stands firmly for female elevation, economic self-reliance, and the timeless artistry
-                  of Indian craftswomen and karigars.
+                  {aboutUs.missionDesc || 'MALKAZ stands firmly for female elevation, economic self-reliance, and the timeless artistry of Indian craftswomen and karigars.'}
                 </p>
               </div>
 
@@ -285,20 +303,24 @@ export default function AboutUsPage() {
                 SIGNATURE BRAND MANIFESTO
               </p>
               <h2 id="manifesto-title" className="malkaz-manifesto-title">
-                Who Is Malka?
+                {aboutUs.manifestoTitle || 'Who Is Malka?'}
               </h2>
               <p className="malkaz-manifesto-body">
-                She is not defined by fleeting trends or external validation. She is bold yet gentle, ambitious
-                yet grounded, traditional yet forward-looking. She wears her values with pride, leads with purpose,
-                and turns everyday challenges into stepping stones of grace.
+                {aboutUs.manifestoBody || (
+                  <>
+                    She is not defined by fleeting trends or external validation. She is bold yet gentle, ambitious
+                    yet grounded, traditional yet forward-looking. She wears her values with pride, leads with purpose,
+                    and turns everyday challenges into stepping stones of grace.
+                  </>
+                )}
               </p>
 
               <div className="malkaz-manifesto-gold-box">
                 <h3 className="malkaz-manifesto-tagline">
-                  MALKAZ – SHE IS HER OWN CROWN.
+                  {aboutUs.tagline || 'MALKAZ – SHE IS HER OWN CROWN.'}
                 </h3>
                 <p className="malkaz-manifesto-subtagline">
-                  She Can Shine Her Own Way.
+                  {aboutUs.subtagline || 'She Can Shine Her Own Way.'}
                 </p>
               </div>
 

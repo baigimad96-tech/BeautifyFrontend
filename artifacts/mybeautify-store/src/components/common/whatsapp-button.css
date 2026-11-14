@@ -1,0 +1,89 @@
+/**
+ * MALKAZ WhatsApp Button Styles
+ * Matches Emerald Green (#063B2F / #0A3622) and Warm Gold (#D4AF37)
+ */
+
+.mb-header-whatsapp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #FAF8F3;
+  color: #128C7E;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  text-decoration: none;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 6px rgba(18, 140, 126, 0.08);
+  flex-shrink: 0;
+}
+
+.mb-header-whatsapp-btn:hover {
+  background: #063B2F;
+  color: #25D366;
+  border-color: #D4AF37;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(6, 59, 47, 0.2);
+}
+
+.whatsapp-svg-icon {
+  display: block;
+}
+
+.mb-whatsapp-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: #063B2F;
+  color: #FAF8F3;
+  border: 1px solid #D4AF37;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(6, 59, 47, 0.15);
+}
+
+.mb-whatsapp-pill:hover {
+  background: #25D366;
+  color: #062818;
+  border-color: #062818;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(37, 211, 102, 0.3);
+}
+
+.mb-whatsapp-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 28px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #0A3622 0%, #062818 100%);
+  color: #FFFFFF;
+  border: 1.5px solid #D4AF37;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 14px rgba(10, 54, 34, 0.2);
+}
+
+.mb-whatsapp-action-btn:hover {
+  background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+  color: #FFFFFF;
+  border-color: #FFFFFF;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(37, 211, 102, 0.35);
+}
+
+.whatsapp-phone-sub {
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.85;
+  margin-left: 4px;
+}

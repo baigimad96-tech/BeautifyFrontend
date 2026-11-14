@@ -72,6 +72,7 @@ import { getAttributeLabel, PREFERRED_ATTRIBUTE_ORDER } from '@/constants/produc
 import '@/styles/customer-dashboard.css';
 import '@/styles/product-detail.css';
 import { HeaderSearchBar } from '@/components/common/HeaderSearchBar';
+import { WhatsAppButton } from '@/components/common/WhatsAppButton';
 import { MalkazSidebar } from '@/components/layout/MalkazSidebar';
 import { getJewelleryImage } from '@/lib/jewellery-images';
 import { animateProductToCart, animateTrashCan } from '@/lib/cart-animations';
@@ -408,7 +409,17 @@ export function ProductDetailPage() {
   // Gallery images array
   const galleryImages = useMemo(() => {
     if (!product) return [];
-    return [getJewelleryImage(product.imageUrl, product.name, product.id)];
+    const list: string[] = [];
+    if (Array.isArray(product.images) && product.images.length > 0) {
+      for (const img of product.images) {
+        if (img && typeof img === 'string' && img.trim()) {
+          list.push(getJewelleryImage(img.trim(), product.name, product.id));
+        }
+      }
+    } else if (product.imageUrl) {
+      list.push(getJewelleryImage(product.imageUrl, product.name, product.id));
+    }
+    return list.length > 0 ? list : [getJewelleryImage(null, product.name, product.id)];
   }, [product]);
 
   const productShareText = product
@@ -923,6 +934,9 @@ export function ProductDetailPage() {
             >
               About Us
             </Link>
+
+            {/* Top Navbar WhatsApp Concierge Button */}
+            <WhatsAppButton variant="header" />
 
             <button
               type="button"
