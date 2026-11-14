@@ -1,9 +1,8 @@
-import { DEMO_IMAGES } from '@/constants';
+import { resolveImageUrl, FALLBACK_JEWELLERY_IMAGE } from '@/lib/jewellery-images';
 
 /**
- * Returns the provided image or falls back to a deterministic demo SVG image.
+ * Normalizes product image URL and ensures HTTPS.
  */
-export function imageFor(image?: string | null, index = 0): string {
-  if (image && image.trim().length > 0) return image;
-  return DEMO_IMAGES[index % DEMO_IMAGES.length];
+export function imageFor(image?: string | null): string {
+  return resolveImageUrl(image, FALLBACK_JEWELLERY_IMAGE);
 }

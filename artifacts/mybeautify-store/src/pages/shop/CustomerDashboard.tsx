@@ -1070,7 +1070,7 @@ export default function CustomerDashboard() {
       )}
 
       <MalkazSidebar
-        activeItem={activeModal ?? 'home'}
+        activeItem={activeModal ?? (location === '/about' || location === '/about-us' ? 'about' : location === '/combos' ? 'combos' : 'home')}
         isOpen={mobileSidebarOpen}
         isCollapsed={sidebarCollapsed}
         isSignedIn={Boolean(user)}
@@ -1144,6 +1144,16 @@ export default function CustomerDashboard() {
 
           {/* Right actions: Wishlist, Cart, Profile */}
           <div className="mb-header-right-actions mz-header-right-actions">
+            {/* Top Navbar "About Us" Link */}
+            <Link
+              href="/about"
+              className={`mb-header-nav-link ${location === '/about' || location === '/about-us' ? 'active' : ''}`}
+              title="About MALKAZ"
+              data-testid="header-about-link"
+            >
+              About Us
+            </Link>
+
             {/* Discreet Admin Dashboard Shortcut - Visible strictly ONLY for verified ADMIN */}
             {isVerifiedAdmin && (
               <Link

@@ -24,14 +24,11 @@ import MalkazProductCard from '@/components/products/MalkazProductCard';
 import { getJewelleryImage } from '@/lib/jewellery-images';
 
 const CATEGORY_IMAGE_FALLBACKS: Array<[RegExp, string]> = [
-  [/\b(lip|gloss|lipstick)\b/i, '/products/gloss-ritual-lip-oil.jpg'],
-  [/\b(blush|makeup|make-up)\b/i, '/products/silk-veil-cream-blush.jpg'],
-  [/\b(skin|cream|moistur|cleanser|serum|toner)\b/i, '/products/dew-cloud-cream/1.jpg'],
-  [/\b(earring|earrings|jhumka|jhumki)\b/i, '/products/jewels/traditional-kundan-jhumka.jpg'],
+  [/\b(earring|earrings|jhumka|jhumki|stud|studs)\b/i, '/products/jewels/traditional-kundan-jhumka.jpg'],
   [/\b(ring|rings)\b/i, '/products/jewels/vintage-emerald-ring.jpg'],
-  [/\b(bangle|bangles)\b/i, '/products/jewels/designer-gold-bangles.jpg'],
+  [/\b(bangle|bangles|kada)\b/i, '/products/jewels/designer-gold-bangles.jpg'],
   [/\b(bracelet|bracelets)\b/i, '/products/jewels/diamond-tennis-bracelet.jpg'],
-  [/\b(necklace|necklaces|chain|chains|pendant)\b/i, '/products/jewels/royal-emerald-necklace.jpg'],
+  [/\b(necklace|necklaces|chain|chains|pendant|pendants|choker)\b/i, '/products/jewels/royal-emerald-necklace.jpg'],
 ];
 
 const CATEGORY_IMAGE_DEFAULTS = [

@@ -29,6 +29,9 @@ export function AppRoutes() {
         <Route path="/share-referral" component={ShareReferralPage} />
         <Route path="/referral" component={ShareReferralPage} />
         <Route path="/privacy-conditions" component={PrivacyConditionsPage} />
+        <Route path="/privacy" component={PrivacyConditionsPage} />
+        <Route path="/terms" component={PrivacyConditionsPage} />
+        <Route path="/about" component={AboutUsPage} />
         <Route path="/about-us" component={AboutUsPage} />
         <Route path="/checkout" component={CheckoutPage} />
         <Route path="/products/:productId" component={ProductDetailPage} />

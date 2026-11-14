@@ -245,6 +245,7 @@ export default function CombosOffersPage() {
             <Link href="/">Home</Link>
             <Link href="/shop">Shop</Link>
             <Link href="/combos" aria-current="page">Combos &amp; Offers</Link>
+            <Link href="/about">About Us</Link>
           </nav>
           <Link href="/cart" className="combos-cart-link">
             <ShoppingCart size={18} /> Cart

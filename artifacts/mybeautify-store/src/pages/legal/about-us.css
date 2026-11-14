@@ -1,0 +1,671 @@
+/**
+ * MALKAZ Luxury About Us Page Styles
+ * Royal Emerald Green (#0A3622 / #062818), Warm Cream (#FAF8F3), Gold (#D4AF37)
+ */
+
+.malkaz-about-page {
+  background: #FAF8F3;
+  color: #1A2E26;
+  font-family: var(--mb-font-sans, 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif);
+  padding-bottom: 80px;
+}
+
+/* Back Link */
+.malkaz-about-back-wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 24px 0;
+}
+
+.malkaz-about-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #0A3622;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  letter-spacing: 0.02em;
+}
+
+.malkaz-about-back-link:hover {
+  color: #D4AF37;
+  transform: translateX(-3px);
+}
+
+/* ==========================================================================
+   1. HERO BANNER
+   ========================================================================== */
+.malkaz-about-hero {
+  position: relative;
+  background: linear-gradient(135deg, #062818 0%, #0A3622 55%, #0D442B 100%);
+  color: #FAF8F3;
+  padding: 80px 24px 90px;
+  text-align: center;
+  overflow: hidden;
+  margin-top: 16px;
+  border-bottom: 3px solid #D4AF37;
+}
+
+.malkaz-about-hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: radial-gradient(circle at 50% 30%, rgba(212, 175, 55, 0.15) 0%, transparent 65%);
+  pointer-events: none;
+}
+
+.malkaz-about-hero-content {
+  position: relative;
+  max-width: 860px;
+  margin: 0 auto;
+  z-index: 1;
+}
+
+.malkaz-about-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 18px;
+  border-radius: 999px;
+  background: rgba(212, 175, 55, 0.15);
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  color: #E8CF7A;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 22px;
+}
+
+.malkaz-about-hero-title {
+  font-family: var(--mb-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: clamp(38px, 6vw, 68px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #FFFFFF;
+  margin: 0 0 12px;
+  text-transform: uppercase;
+}
+
+.malkaz-about-hero-subtitle {
+  font-family: var(--mb-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: clamp(20px, 3vw, 28px);
+  font-style: italic;
+  font-weight: 400;
+  color: #D4AF37;
+  margin: 0 0 24px;
+}
+
+.malkaz-about-ornament {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 18px 0 28px;
+  color: #D4AF37;
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+.malkaz-about-ornament::before,
+.malkaz-about-ornament::after {
+  content: '';
+  width: 50px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #D4AF37, transparent);
+}
+
+.malkaz-about-hero-desc {
+  font-size: clamp(15px, 1.8vw, 17px);
+  line-height: 1.85;
+  color: #E6EDE9;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.malkaz-about-founder-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 28px;
+  padding: 8px 20px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  font-size: 13px;
+  color: #FAF8F3;
+}
+
+.malkaz-about-founder-tag strong {
+  color: #E8CF7A;
+}
+
+/* ==========================================================================
+   PAGE CONTAINER & SECTIONS
+   ========================================================================== */
+.malkaz-about-container {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ==========================================================================
+   2. CUSTOMER SATISFACTION & TRUST CALLOUT
+   ========================================================================== */
+.malkaz-about-trust-callout {
+  background: #FFFFFF;
+  border: 1px solid #EAE0D0;
+  border-top: 4px solid #D4AF37;
+  border-radius: 16px;
+  padding: clamp(32px, 5vw, 48px);
+  margin: -40px auto 70px;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 10px 30px rgba(10, 54, 34, 0.06);
+}
+
+.malkaz-trust-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 32px;
+}
+
+@media (min-width: 860px) {
+  .malkaz-trust-grid {
+    grid-template-columns: 1.1fr 1fr;
+    align-items: center;
+    gap: 48px;
+  }
+}
+
+.malkaz-trust-header .eyebrow {
+  color: #9A7B2C;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.malkaz-trust-title {
+  font-family: var(--mb-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: clamp(26px, 3.5vw, 36px);
+  color: #0A3622;
+  margin: 0 0 16px;
+  line-height: 1.25;
+}
+
+.malkaz-trust-copy {
+  font-size: 15px;
+  line-height: 1.8;
+  color: #4A5D54;
+  margin: 0 0 18px;
+}
+
+.malkaz-trust-copy a {
+  color: #0A3622;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: #D4AF37;
+  text-underline-offset: 3px;
+  transition: all 0.2s ease;
+}
+
+.malkaz-trust-copy a:hover {
+  color: #D4AF37;
+}
+
+.malkaz-trust-pillars {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.malkaz-trust-pillar-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px 18px;
+  background: #FAF8F3;
+  border-radius: 12px;
+  border: 1px solid #ECE3D4;
+}
+
+.malkaz-trust-pillar-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(10, 54, 34, 0.08);
+  color: #0A3622;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.malkaz-trust-pillar-text h4 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0A3622;
+}
+
+.malkaz-trust-pillar-text p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: #55685F;
+}
+
+/* ==========================================================================
+   3. DISCOVER OUR PREMIUM COLLECTIONS (3-Column Grid)
+   ========================================================================== */
+.malkaz-about-collections-section {
+  padding: 30px 0 70px;
+}
+
+.malkaz-section-header {
+  text-align: center;
+  max-width: 680px;
+  margin: 0 auto 46px;
+}
+
+.malkaz-section-eyebrow {
+  color: #9A7B2C;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.malkaz-section-title {
+  font-family: var(--mb-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: clamp(28px, 4vw, 42px);
+  color: #0A3622;
+  margin: 0 0 12px;
+  line-height: 1.2;
+}
+
+.malkaz-section-desc {
+  font-size: 15px;
+  line-height: 1.75;
+  color: #55685F;
+  margin: 0;
+}
+
+.malkaz-collections-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 28px;
+}
+
+@media (max-width: 900px) {
+  .malkaz-collections-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+.malkaz-collection-card {
+  background: #FFFFFF;
+  border-radius: 16px;
+  border: 1px solid #ECE3D4;
+  padding: 32px 26px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 16px rgba(10, 54, 34, 0.04);
+}
+
+.malkaz-collection-card:hover {
+  transform: translateY(-5px);
+  border-color: #D4AF37;
+  box-shadow: 0 12px 28px rgba(10, 54, 34, 0.09);
+}
+
+.malkaz-collection-card-icon-wrap {
+  width: 58px;
+  height: 58px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(10, 54, 34, 0.08) 0%, rgba(212, 175, 55, 0.18) 100%);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0A3622;
+  margin-bottom: 22px;
+}
+
+.malkaz-collection-card-title {
+  font-family: var(--mb-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: 22px;
+  font-weight: 700;
+  color: #0A3622;
+  margin: 0 0 12px;
+}
+
+.malkaz-collection-card-desc {
+  font-size: 14.5px;
+  line-height: 1.75;
+  color: #55685F;
+  margin: 0 0 24px;
+  flex-grow: 1;
+}
+
+.malkaz-collection-card-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0A3622;
+  text-decoration: none;
+  border-bottom: 1px solid #D4AF37;
+  padding-bottom: 3px;
+  width: fit-content;
+  transition: all 0.2s ease;
+}
+
+.malkaz-collection-card-link:hover {
+  color: #D4AF37;
+  gap: 12px;
+}
+
+.malkaz-about-badge-soon {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  background: linear-gradient(135deg, #FAF3E0 0%, #F5E6BF 100%);
+  border: 1px solid #D4AF37;
+  color: #8C6F1E;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
+/* ==========================================================================
+   4. THE STORY BEHIND THE NAME MALKAZ
+   ========================================================================== */
+.malkaz-story-section {
+  background: #FFFFFF;
+  border: 1px solid #EAE0D0;
+  border-radius: 20px;
+  padding: clamp(36px, 6vw, 64px);
+  margin: 0 0 70px;
+  box-shadow: 0 8px 24px rgba(10, 54, 34, 0.05);
+}
+
+.malkaz-story-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 40px;
+}
+
+@media (min-width: 900px) {
+  .malkaz-story-grid {
+    grid-template-columns: 1fr 1.15fr;
+    align-items: center;
+    gap: 60px;
+  }
+}
+
+.malkaz-story-imagery {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #062818 0%, #0A3622 100%);
+  padding: 44px 32px;
+  text-align: center;
+  color: #FAF8F3;
+  border: 2px solid #D4AF37;
+}
+
+.malkaz-story-imagery-emblem {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 20px;
+  color: #D4AF37;
+}
+
+.malkaz-story-imagery-quote {
+  font-family: var(--mb-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: 24px;
+  font-style: italic;
+  line-height: 1.5;
+  color: #FFFFFF;
+  margin: 0 0 16px;
+}
+
+.malkaz-story-imagery-sub {
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #D4AF37;
+  font-weight: 700;
+}
+
+.malkaz-story-text-content .eyebrow {
+  color: #9A7B2C;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.malkaz-story-text-content h2 {
+  font-family: var(--mb-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: clamp(26px, 3.8vw, 38px);
+  color: #0A3622;
+  margin: 0 0 20px;
+  line-height: 1.25;
+}
+
+.malkaz-story-text-content p {
+  font-size: 15px;
+  line-height: 1.85;
+  color: #4A5D54;
+  margin: 0 0 18px;
+}
+
+/* ==========================================================================
+   5. A MISSION TO EMPOWER WOMEN
+   ========================================================================== */
+.malkaz-mission-section {
+  padding: 20px 0 70px;
+}
+
+.malkaz-mission-card {
+  background: linear-gradient(135deg, #0A3622 0%, #062818 100%);
+  color: #FAF8F3;
+  border-radius: 20px;
+  padding: clamp(36px, 6vw, 60px);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  box-shadow: 0 12px 32px rgba(6, 40, 24, 0.18);
+}
+
+.malkaz-mission-header {
+  text-align: center;
+  max-width: 720px;
+  margin: 0 auto 40px;
+}
+
+.malkaz-mission-header .eyebrow {
+  color: #D4AF37;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.malkaz-mission-header h2 {
+  font-family: var(--mb-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: clamp(26px, 3.8vw, 40px);
+  color: #FFFFFF;
+  margin: 0 0 16px;
+}
+
+.malkaz-mission-header p {
+  font-size: 15.5px;
+  line-height: 1.8;
+  color: #E2ECE6;
+  margin: 0;
+}
+
+.malkaz-mission-pillars-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+}
+
+@media (max-width: 860px) {
+  .malkaz-mission-pillars-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+}
+
+.malkaz-mission-pillar {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 14px;
+  padding: 24px 20px;
+  transition: all 0.2s ease;
+}
+
+.malkaz-mission-pillar:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #D4AF37;
+  transform: translateY(-3px);
+}
+
+.malkaz-mission-pillar h4 {
+  font-family: var(--mb-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: 18px;
+  color: #E8CF7A;
+  margin: 0 0 8px;
+}
+
+.malkaz-mission-pillar p {
+  font-size: 14px;
+  line-height: 1.7;
+  color: #C8D7D0;
+  margin: 0;
+}
+
+/* ==========================================================================
+   6. WHO IS MALKA? (SIGNATURE MANIFESTO)
+   ========================================================================== */
+.malkaz-manifesto-section {
+  padding: 10px 0 30px;
+}
+
+.malkaz-manifesto-card {
+  position: relative;
+  background: linear-gradient(135deg, #FAF8F3 0%, #FFFFFF 100%);
+  border: 2px solid #D4AF37;
+  border-radius: 24px;
+  padding: clamp(40px, 7vw, 72px) clamp(24px, 5vw, 60px);
+  text-align: center;
+  box-shadow: 0 16px 40px rgba(212, 175, 55, 0.12);
+  overflow: hidden;
+}
+
+.malkaz-manifesto-card::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 18px;
+  pointer-events: none;
+}
+
+.malkaz-manifesto-crown {
+  width: 48px;
+  height: 48px;
+  color: #D4AF37;
+  margin: 0 auto 16px;
+}
+
+.malkaz-manifesto-title {
+  font-family: var(--mb-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: clamp(28px, 4vw, 44px);
+  color: #0A3622;
+  margin: 0 0 18px;
+}
+
+.malkaz-manifesto-body {
+  font-size: clamp(15px, 2vw, 17px);
+  line-height: 1.85;
+  color: #4A5D54;
+  max-width: 740px;
+  margin: 0 auto 28px;
+}
+
+.malkaz-manifesto-gold-box {
+  background: linear-gradient(135deg, #0A3622 0%, #062818 100%);
+  border: 1px solid #D4AF37;
+  border-radius: 16px;
+  padding: 26px 20px;
+  max-width: 680px;
+  margin: 0 auto 36px;
+  box-shadow: 0 6px 20px rgba(10, 54, 34, 0.12);
+}
+
+.malkaz-manifesto-tagline {
+  font-family: var(--mb-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: clamp(20px, 3.2vw, 32px);
+  font-weight: 700;
+  color: #E8CF7A;
+  letter-spacing: 0.08em;
+  margin: 0 0 6px;
+  text-transform: uppercase;
+}
+
+.malkaz-manifesto-subtagline {
+  font-family: var(--mb-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: clamp(16px, 2.2vw, 20px);
+  font-style: italic;
+  color: #FAF8F3;
+  margin: 0;
+}
+
+.malkaz-manifesto-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 36px;
+  border-radius: 999px;
+  background: #0A3622;
+  color: #FAF8F3;
+  border: 1px solid #D4AF37;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 14px rgba(10, 54, 34, 0.2);
+}
+
+.malkaz-manifesto-cta:hover {
+  background: #D4AF37;
+  color: #062818;
+  border-color: #062818;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(212, 175, 55, 0.35);
+}
+

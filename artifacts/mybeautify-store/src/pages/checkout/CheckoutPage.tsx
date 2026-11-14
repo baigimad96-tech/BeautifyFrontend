@@ -178,7 +178,7 @@ export default function CheckoutPage() {
       setPendingVerification(null);
       try {
         sessionStorage.removeItem('malkaz_pending_verification');
-      } catch {}
+      } catch { }
     }
   }, [user, pendingVerification]);
 
@@ -267,7 +267,7 @@ export default function CheckoutPage() {
   // Remove item from cart
   const handleRemoveItem = async (itemId: number, removeButton: HTMLElement) => {
     setRemovingItemId(itemId);
-    let restoreTrashIcon = () => {};
+    let restoreTrashIcon = () => { };
     try {
       restoreTrashIcon = await animateTrashCan(removeButton);
       const item = cart?.items.find((cartItem) => cartItem.id === itemId);
@@ -288,7 +288,7 @@ export default function CheckoutPage() {
   const handleRemoveComboGroup = async (comboGroupId: string, removeButton: HTMLElement) => {
     if (removingItemId !== null) return;
     setRemovingItemId(-1);
-    let restoreTrashIcon = () => {};
+    let restoreTrashIcon = () => { };
     try {
       restoreTrashIcon = await animateTrashCan(removeButton);
       await removeComboGroupFromCart(comboGroupId);
@@ -309,13 +309,13 @@ export default function CheckoutPage() {
     type GroupEntry =
       | { type: 'regular'; item: (typeof cart.items)[number] }
       | {
-          type: 'combo';
-          comboGroupId: string;
-          comboName: string;
-          comboType?: string | null;
-          items: typeof cart.items;
-          totalPrice: number;
-        };
+        type: 'combo';
+        comboGroupId: string;
+        comboName: string;
+        comboType?: string | null;
+        items: typeof cart.items;
+        totalPrice: number;
+      };
 
     const result: GroupEntry[] = [];
     const comboMap = new Map<string, {
@@ -622,7 +622,7 @@ export default function CheckoutPage() {
         setVerificationFeedback(null);
         try {
           sessionStorage.removeItem('malkaz_pending_verification');
-        } catch {}
+        } catch { }
 
         let finalizedOrder: OrderResponse | null = null;
         try {
@@ -677,7 +677,7 @@ export default function CheckoutPage() {
         setOrderError(null);
         try {
           sessionStorage.removeItem('malkaz_pending_verification');
-        } catch {}
+        } catch { }
 
         let finalizedOrder: OrderResponse | null = null;
         try {
@@ -706,7 +706,7 @@ export default function CheckoutPage() {
         setPendingVerification(null);
         try {
           sessionStorage.removeItem('malkaz_pending_verification');
-        } catch {}
+        } catch { }
         const reason = statusResp.failureReason || 'Payment authorization was declined or failed.';
         const msg = `Payment failed: ${reason}. You may select a payment method and try placing your order again.`;
         setVerificationFeedback(null);
@@ -778,17 +778,17 @@ export default function CheckoutPage() {
             blocks:
               selectedMethod === 'UPI'
                 ? {
-                    upi: {
-                      name: 'Pay via UPI',
-                      instruments: [{ method: 'upi' }],
-                    },
-                  }
-                : {
-                    netbanking: {
-                      name: 'Net Banking',
-                      instruments: [{ method: 'netbanking' }],
-                    },
+                  upi: {
+                    name: 'Pay via UPI',
+                    instruments: [{ method: 'upi' }],
                   },
+                }
+                : {
+                  netbanking: {
+                    name: 'Net Banking',
+                    instruments: [{ method: 'netbanking' }],
+                  },
+                },
             sequence: selectedMethod === 'UPI' ? ['block.upi'] : ['block.netbanking'],
             preferences: {
               show_default_blocks: false,
