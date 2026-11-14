@@ -1,9 +1,4 @@
 import type { ProductResponse } from '@/types/product.types';
-import {
-  PRODUCT_SIZE_LOOKUP,
-  PRODUCT_REVIEW_COUNT_LOOKUP,
-  PRODUCT_RATING_LOOKUP,
-} from '@/constants';
 
 /**
  * Calculates discount percentage label (e.g., "25% OFF")
@@ -15,38 +10,45 @@ export const getDiscountPercent = (price: number, discountPrice?: number): strin
 };
 
 /**
- * Derives badge text and CSS class from product attributes
+ * Derives badge text and CSS class from real product attributes
  */
 export const getProductBadge = (
   product: ProductResponse
-): { text: string; type: string } => {
-  const discount = product.discountPrice ? (product.price - product.discountPrice) / product.price : 0;
-  if (discount >= 0.25) return { text: 'Hot Deal', type: 'mb-badge-hotdeal' };
-  if (product.featured) return { text: 'Best Seller', type: 'mb-badge-bestseller' };
-  if (product.id % 4 === 0) return { text: 'Trending', type: 'mb-badge-trending' };
-  if (product.id >= 4) return { text: 'New', type: 'mb-badge-new' };
-  return { text: 'Bestseller', type: 'mb-badge-bestseller' };
+): { text: string; type: string } | null => {
+  const discountLabel = getDiscountPercent(product.price, product.discountPrice);
+  if (discountLabel) {
+    const pct = Math.round(((product.price - (product.discountPrice || product.price)) / product.price) * 100);
+    return pct >= 25
+      ? { text: 'Hot Deal', type: 'mb-badge-hotdeal' }
+      : { text: discountLabel, type: 'mb-badge-discount' };
+  }
+  if (product.featured) {
+    return { text: 'Featured', type: 'mb-badge-bestseller' };
+  }
+  return null;
 };
 
 /**
- * Derives display size for a product
+ * Derives display size for a product from backend data
  */
 export const getProductSize = (product: ProductResponse): string => {
-  if (product.size) return product.size;
-  return PRODUCT_SIZE_LOOKUP[product.id] || '50ml';
+  return product.size || '';
 };
 
 /**
- * Derives review count for a product
+ * Derives real review count for a product
  */
 export const getProductReviewCount = (product: ProductResponse): number => {
-  return PRODUCT_REVIEW_COUNT_LOOKUP[product.id] || 25 + (product.id * 7) % 40;
+  return typeof product.reviewCount === 'number' && product.reviewCount > 0
+    ? product.reviewCount
+    : 0;
 };
 
 /**
- * Derives average rating for a product
+ * Derives real average rating for a product
  */
 export const getProductRating = (product: ProductResponse): number => {
-  if (product.averageRating && product.averageRating > 0) return product.averageRating;
-  return PRODUCT_RATING_LOOKUP[product.id] || 4.5;
+  return typeof product.averageRating === 'number' && Number.isFinite(product.averageRating)
+    ? product.averageRating
+    : 0;
 };

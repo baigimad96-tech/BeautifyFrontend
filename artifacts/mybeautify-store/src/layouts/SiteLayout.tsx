@@ -38,6 +38,7 @@ export function SiteLayout({ children }: SiteLayoutProps) {
     ['Shop', '/shop'],
     ['Combos & Offers', '/combos'],
     ['Categories', '/categories'],
+    ['About Us', '/about'],
     ['Our collection', '/#edit'],
   ];
 
@@ -67,17 +68,22 @@ export function SiteLayout({ children }: SiteLayoutProps) {
       <header className="nav">
         <BrandMark />
         <nav className="navlinks" aria-label="Primary navigation">
-          {nav.map(([label, href]) => (
-            <Link
-              key={href}
-              href={href}
-              className={location === href ? 'active' : ''}
-              onClick={() => setMenu(false)}
-              data-testid={`link-nav-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
-            >
-              {label}
-            </Link>
-          ))}
+          {nav.map(([label, href]) => {
+            const isActive =
+              location === href ||
+              (href === '/about' && (location === '/about' || location === '/about-us'));
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={isActive ? 'active' : ''}
+                onClick={() => setMenu(false)}
+                data-testid={`link-nav-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+              >
+                {label}
+              </Link>
+            );
+          })}
         </nav>
         <div className="nav-actions">
           {Boolean(getAuthToken()) && hasAdminRole(currentUser?.role) && (
@@ -153,16 +159,21 @@ export function SiteLayout({ children }: SiteLayoutProps) {
             <X size={19} />
           </button>
         </div>
-        {nav.map(([label, href]) => (
-          <Link
-            key={href}
-            href={href}
-            className={location === href ? 'active' : ''}
-            onClick={() => setMenu(false)}
-          >
-            {label}
-          </Link>
-        ))}
+        {nav.map(([label, href]) => {
+          const isActive =
+            location === href ||
+            (href === '/about' && (location === '/about' || location === '/about-us'));
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={isActive ? 'active' : ''}
+              onClick={() => setMenu(false)}
+            >
+              {label}
+            </Link>
+          );
+        })}
         {toArray<Category>(categories.data).map((category) => (
           <Link
             key={category.id}
@@ -194,7 +205,7 @@ export function SiteLayout({ children }: SiteLayoutProps) {
             Saved items
           </Link>{' '}
           &nbsp;·&nbsp;{' '}
-          <Link href="/about-us" data-testid="link-footer-about-us">
+          <Link href="/about" data-testid="link-footer-about-us">
             About Us
           </Link>{' '}
           &nbsp;·&nbsp;{' '}

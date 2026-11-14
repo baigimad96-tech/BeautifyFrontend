@@ -33,6 +33,7 @@ import {
 import { FaFacebookF, FaInstagram, FaTwitter, FaWhatsapp } from 'react-icons/fa';
 import {
   fetchProductById,
+  fetchProductBySlug,
   fetchProducts,
   fetchSimilarProducts,
   fetchProductReviews,
@@ -76,51 +77,112 @@ import { getJewelleryImage } from '@/lib/jewellery-images';
 import { animateProductToCart, animateTrashCan } from '@/lib/cart-animations';
 import { removeComboGroupFromCart } from '@/services/combos/combos.service';
 
-// Curated high-elegance jewellery variants shown as reference in design mockups
-const DEFAULT_CURATED_VARIANTS: SimilarProductResponse[] = [
-  {
-    id: 9001,
-    name: 'Emerald Drop',
-    slug: 'emerald-drop',
-    price: 15,
-    sellingPrice: 15,
-    imageUrl: '/products/jewels/royal-emerald-necklace.jpg',
-    categoryName: 'Pendant Necklaces',
-  },
-  {
-    id: 9002,
-    name: 'Floral Gold',
-    slug: 'floral-gold',
-    price: 18,
-    sellingPrice: 18,
-    imageUrl: '/products/jewels/traditional-kundan-jhumka.jpg',
-    categoryName: 'Pendant Necklaces',
-  },
-  {
-    id: 9003,
-    name: 'Classic Round',
-    slug: 'classic-round',
-    price: 14,
-    sellingPrice: 14,
-    imageUrl: '/products/jewels/vintage-emerald-ring.jpg',
-    categoryName: 'Pendant Necklaces',
-  },
-  {
-    id: 9004,
-    name: 'Golden Chain',
-    slug: 'golden-chain',
-    price: 16,
-    sellingPrice: 16,
-    imageUrl: '/products/jewels/graceful-pendant-necklace.jpg',
-    categoryName: 'Pendant Necklaces',
-  },
-];
+interface ProductBreadcrumbProps {
+  productName: string;
+  categoryName?: string | null;
+  subcategoryName?: string | null;
+}
+
+const INVALID_CATEGORIES = new Set(['snake', 'uncategorized', 'default', 'none', 'null']);
+
+export const ProductBreadcrumb: React.FC<ProductBreadcrumbProps> = ({
+  productName,
+  categoryName,
+  subcategoryName,
+}) => {
+  const cleanCategory =
+    categoryName && !INVALID_CATEGORIES.has(categoryName.trim().toLowerCase())
+      ? categoryName.trim()
+      : null;
+
+  const cleanSubcategory =
+    subcategoryName &&
+    !INVALID_CATEGORIES.has(subcategoryName.trim().toLowerCase()) &&
+    subcategoryName.trim().toLowerCase() !== cleanCategory?.toLowerCase()
+      ? subcategoryName.trim()
+      : null;
+
+  useEffect(() => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://fashionmalkaz.com';
+    const itemListElement: Array<Record<string, unknown>> = [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: `${origin}/` },
+      { '@type': 'ListItem', position: 2, name: 'Shop', item: `${origin}/shop` },
+    ];
+    let pos = 3;
+    if (cleanCategory) {
+      itemListElement.push({
+        '@type': 'ListItem',
+        position: pos++,
+        name: cleanCategory,
+        item: `${origin}/shop?category=${encodeURIComponent(cleanCategory)}`,
+      });
+    }
+    if (cleanSubcategory) {
+      itemListElement.push({
+        '@type': 'ListItem',
+        position: pos++,
+        name: cleanSubcategory,
+        item: `${origin}/shop?category=${encodeURIComponent(cleanCategory || '')}&subcategory=${encodeURIComponent(cleanSubcategory)}`,
+      });
+    }
+    itemListElement.push({ '@type': 'ListItem', position: pos, name: productName });
+
+    const scriptId = 'malkaz-breadcrumb-jsonld';
+    let scriptTag = document.getElementById(scriptId) as HTMLScriptElement | null;
+    if (!scriptTag) {
+      scriptTag = document.createElement('script');
+      scriptTag.id = scriptId;
+      scriptTag.type = 'application/ld+json';
+      document.head.appendChild(scriptTag);
+    }
+    scriptTag.textContent = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement,
+    });
+    return () => {
+      document.getElementById(scriptId)?.remove();
+    };
+  }, [productName, cleanCategory, cleanSubcategory]);
+
+  return (
+    <nav className="mb-breadcrumb" aria-label="Breadcrumb">
+      <ol style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px', listStyle: 'none', margin: 0, padding: 0 }}>
+        <li style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          <Link href="/" className="mb-breadcrumb-link">Home</Link>
+          <ChevronRight size={14} className="mb-breadcrumb-sep" aria-hidden="true" />
+        </li>
+        <li style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          <Link href="/shop" className="mb-breadcrumb-link">Shop</Link>
+          <ChevronRight size={14} className="mb-breadcrumb-sep" aria-hidden="true" />
+        </li>
+        {cleanCategory && (
+          <li style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <Link href={`/shop?category=${encodeURIComponent(cleanCategory)}`} className="mb-breadcrumb-link">{cleanCategory}</Link>
+            <ChevronRight size={14} className="mb-breadcrumb-sep" aria-hidden="true" />
+          </li>
+        )}
+        {cleanSubcategory && (
+          <li style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <Link href={`/shop?category=${encodeURIComponent(cleanCategory || '')}&subcategory=${encodeURIComponent(cleanSubcategory)}`} className="mb-breadcrumb-link">{cleanSubcategory}</Link>
+            <ChevronRight size={14} className="mb-breadcrumb-sep" aria-hidden="true" />
+          </li>
+        )}
+        <li aria-current="page">
+          <span className="mb-breadcrumb-current" title={productName} style={{ maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block', verticalAlign: 'bottom' }}>
+            {productName}
+          </span>
+        </li>
+      </ol>
+    </nav>
+  );
+};
 
 export function ProductDetailPage() {
   const params = useParams<{ productId?: string; id?: string }>();
   const productIdRaw = params.productId || params.id || '';
   const productId = parseInt(productIdRaw, 10);
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
 
   // Authentication & User State
   const [user, setUser] = useState<UserResponse | null>(null);
@@ -199,7 +261,7 @@ export function ProductDetailPage() {
     }, 3200);
   }, []);
 
-  const loadSimilarStyles = useCallback(async (id: number) => {
+  const loadSimilarStyles = useCallback(async (id: number, categoryId?: number | null) => {
     const requestId = ++similarProductsRequestId.current;
     setSimilarProductsLoading(true);
     setSimilarProductsError(null);
@@ -210,16 +272,16 @@ export function ProductDetailPage() {
         if (response && Array.isArray(response.content)) {
           items = response.content.filter((p) => p.id !== id);
         }
-      } catch {
-        // Fallback to catalog
+      } catch (err) {
+        console.warn('Similar products endpoint not available, trying catalog category products:', err);
       }
 
-      // If backend returns fewer than 4 similar items, supplement with active catalog products
-      if (items.length < 4) {
+      // If backend has no explicit relationships, fetch from the same category
+      if (items.length === 0 && categoryId) {
         try {
-          const catalogRes = await fetchProducts({ size: 10 });
+          const catalogRes = await fetchProducts({ categoryId, size: 5 });
           const catalogItems = (catalogRes.content || [])
-            .filter((p) => p.id !== id && !items.some((existing) => existing.id === p.id))
+            .filter((p) => p.id !== id)
             .map((p) => ({
               id: p.id,
               name: p.name,
@@ -229,19 +291,8 @@ export function ProductDetailPage() {
               imageUrl: p.imageUrl,
               categoryName: p.categoryName,
             }));
-          items = [...items, ...catalogItems];
-        } catch {
-          // Fallback to curated variants
-        }
-      }
-
-      // Ensure at least 4 items are always populated using curated jewellery variants
-      if (items.length < 4) {
-        const needed = 4 - items.length;
-        const fallbacks = DEFAULT_CURATED_VARIANTS.filter(
-          (fb) => fb.id !== id && !items.some((existing) => existing.name.toLowerCase() === fb.name.toLowerCase())
-        ).slice(0, needed);
-        items = [...items, ...fallbacks];
+          items = catalogItems;
+        } catch {}
       }
 
       if (requestId === similarProductsRequestId.current) {
@@ -249,7 +300,7 @@ export function ProductDetailPage() {
       }
     } catch {
       if (requestId === similarProductsRequestId.current) {
-        setSimilarProducts(DEFAULT_CURATED_VARIANTS.filter((fb) => fb.id !== id).slice(0, 4));
+        setSimilarProducts([]);
       }
     } finally {
       if (requestId === similarProductsRequestId.current) {
@@ -290,9 +341,9 @@ export function ProductDetailPage() {
     }
   }, []);
 
-  // Fetch Product Details and Recommendations
+  // Fetch Product Details and Recommendations from Spring Boot
   useEffect(() => {
-    if (!productId || isNaN(productId)) {
+    if (!productIdRaw) {
       setError('Invalid product ID');
       setLoading(false);
       return;
@@ -301,60 +352,43 @@ export function ProductDetailPage() {
     let isActive = true;
     setLoading(true);
     setError(null);
+    setProduct(null);
+    setSimilarProducts([]);
     setActiveImageIndex(0);
     setQuantity(1);
 
-    // If ID is from curated variant list, populate rich product data directly
-    if (productId >= 9000) {
-      const curatedMatch = DEFAULT_CURATED_VARIANTS.find((v) => v.id === productId) || DEFAULT_CURATED_VARIANTS[0];
-      setProduct({
-        id: curatedMatch.id,
-        name: `${curatedMatch.name} Pendant Necklace`,
-        slug: curatedMatch.slug,
-        sku: `MALKAZ-VAR-${curatedMatch.id}`,
-        description: `Elevate your jewellery collection with this stunning ${curatedMatch.name} Pendant Necklace. Crafted with high-grade anti-tarnish brass and finished in premium 18K gold plating, this piece combines modern sophistication with timeless charm. • Material: Brass base with 18K Gold Plating • Stone: AAA+ Quality Green Cubic Zirconia • Chain Length: 45 cm + 5 cm adjustable extension • Clasp Type: Lobster Claw • Skin Friendly: Lead, nickel, and cadmium free (Hypoallergenic) • Care Instructions: Keep away from perfumes, water, and sweat. Store in an airtight pouch.`,
-        price: 799,
-        discountPrice: curatedMatch.price,
-        sellingPrice: curatedMatch.price,
-        stockQuantity: 43,
-        imageUrl: curatedMatch.imageUrl,
-        categoryId: 1,
-        categoryName: 'Snake',
-        brandId: 1,
-        brandName: 'MALKAZ',
-        size: 'Details available on product page',
-        featured: true,
-        active: true,
-        averageRating: 0,
-        reviewCount: 0,
-      });
-      setLoading(false);
-      void loadSimilarStyles(productId);
-      return;
-    }
+    const loadPromise = !isNaN(productId) && productId > 0
+      ? fetchProductById(productId)
+      : fetchProductBySlug(productIdRaw);
 
-    fetchProductById(productId)
+    loadPromise
       .then((data) => {
         if (!isActive) return;
         setProduct(data);
         setLoading(false);
-        void loadSimilarStyles(productId);
+        void loadSimilarStyles(data.id, data.categoryId);
 
         // Fetch product reviews
         setReviewsLoading(true);
-        fetchProductReviews(productId)
+        fetchProductReviews(data.id)
           .then((res) => {
-            setReviewsList(res.content || []);
+            if (isActive) setReviewsList(res.content || []);
           })
-          .catch(() => {})
-          .finally(() => setReviewsLoading(false));
+          .catch(() => {
+            if (isActive) setReviewsList([]);
+          })
+          .finally(() => {
+            if (isActive) setReviewsLoading(false);
+          });
 
-        // Fetch recommended products from the same category or overall catalog
+        // Fetch recommended products from the overall catalog
         fetchProducts({ size: 10 })
           .then((catalog) => {
-            const list = catalog.content || [];
-            const filtered = list.filter((p) => p.id !== productId);
-            setRecommendedProducts(filtered);
+            if (isActive) {
+              const list = catalog.content || [];
+              const filtered = list.filter((p) => p.id !== data.id);
+              setRecommendedProducts(filtered);
+            }
           })
           .catch(() => {});
       })
@@ -364,11 +398,12 @@ export function ProductDetailPage() {
         setError(err.message || 'Product not found');
         setLoading(false);
       });
+
     return () => {
       isActive = false;
       similarProductsRequestId.current += 1;
     };
-  }, [productId, loadSimilarStyles]);
+  }, [productIdRaw, productId, loadSimilarStyles]);
 
   // Gallery images array
   const galleryImages = useMemo(() => {
@@ -718,6 +753,19 @@ export function ProductDetailPage() {
   const rating = product ? getProductRating(product) : 0;
   const reviewCount = reviewsList.length;
   const displaySize = product ? getProductSize(product) : '—';
+  const ratingBreakdown = useMemo(() => {
+    const total = reviewsList.length;
+    if (!total) {
+      return [5, 4, 3, 2, 1].map((stars) => ({ stars, pct: 0 }));
+    }
+    return [5, 4, 3, 2, 1].map((stars) => {
+      const count = reviewsList.filter((r) => Math.round(r.rating) === stars).length;
+      const pct = Math.round((count / total) * 100);
+      return { stars, pct };
+    });
+  }, [reviewsList]);
+
+
 
   // Loading Skeleton State
   if (loading) {
@@ -866,6 +914,16 @@ export function ProductDetailPage() {
 
           {/* Right Header Icons */}
           <div className="mb-header-right-actions">
+            {/* Top Navbar "About Us" Link */}
+            <Link
+              href="/about"
+              className={`mb-header-nav-link ${location === '/about' || location === '/about-us' ? 'active' : ''}`}
+              title="About MALKAZ"
+              data-testid="detail-header-about-link"
+            >
+              About Us
+            </Link>
+
             <button
               type="button"
               className="mb-header-icon-btn"
@@ -1043,19 +1101,11 @@ export function ProductDetailPage() {
         {/* Page Content */}
         <main className="mb-page-body mb-product-detail-body">
           {/* Breadcrumb Navigation */}
-          <nav className="mb-breadcrumb" aria-label="Breadcrumb">
-            <Link href="/" className="mb-breadcrumb-link">
-              Home
-            </Link>
-            <ChevronRight size={14} className="mb-breadcrumb-sep" />
-            <Link href={`/shop?category=${encodeURIComponent(product.categoryName)}`} className="mb-breadcrumb-link">
-              {product.categoryName}
-            </Link>
-            <ChevronRight size={14} className="mb-breadcrumb-sep" />
-            <span className="mb-breadcrumb-link">{product.categoryName || 'Fine Jewellery'}</span>
-            <ChevronRight size={14} className="mb-breadcrumb-sep" />
-            <span className="mb-breadcrumb-current">{product.name}</span>
-          </nav>
+          <ProductBreadcrumb
+            productName={product.name}
+            categoryName={product.categoryName}
+            subcategoryName={product.subcategoryName}
+          />
 
           {/* ==================================================================
               MAIN PRODUCT HERO (Gallery + Purchase Info)
@@ -1165,26 +1215,22 @@ export function ProductDetailPage() {
                 </div>
               )}
 
-              {/* Similar Styles / Variants Section - Guaranteed display of 4 variants matching reference */}
-              <section className="mb-similar-styles" aria-labelledby="mb-similar-styles-title">
-                <div className="mb-similar-styles-heading">
-                  <h2 id="mb-similar-styles-title">
-                    <span className="mb-similar-styles-diamond" aria-hidden="true">◆</span> Similar Styles
-                  </h2>
-                  <Link
-                    href={product.categoryName ? `/shop?category=${encodeURIComponent(product.categoryName)}` : '/shop'}
-                    className="mb-similar-styles-view-all"
-                  >
-                    View all <span aria-hidden="true">&rarr;</span>
-                  </Link>
-                </div>
-                <div className="mb-similar-styles-grid">
-                  {(similarProducts.length > 0
-                    ? similarProducts
-                    : DEFAULT_CURATED_VARIANTS.filter((fb) => fb.id !== product.id)
-                  )
-                    .slice(0, 4)
-                    .map((similar) => (
+              {/* Similar Styles / Variants Section - Only displayed when similar pieces exist */}
+              {similarProducts.length > 0 && (
+                <section className="mb-similar-styles" aria-labelledby="mb-similar-styles-title">
+                  <div className="mb-similar-styles-heading">
+                    <h2 id="mb-similar-styles-title">
+                      <span className="mb-similar-styles-diamond" aria-hidden="true">◆</span> Similar Styles
+                    </h2>
+                    <Link
+                      href={product.categoryName ? `/shop?category=${encodeURIComponent(product.categoryName)}` : '/shop'}
+                      className="mb-similar-styles-view-all"
+                    >
+                      View all <span aria-hidden="true">&rarr;</span>
+                    </Link>
+                  </div>
+                  <div className="mb-similar-styles-grid">
+                    {similarProducts.slice(0, 4).map((similar) => (
                       <Link
                         key={similar.id}
                         href={`/products/${similar.id}`}
@@ -1210,8 +1256,9 @@ export function ProductDetailPage() {
                         </span>
                       </Link>
                     ))}
-                </div>
-              </section>
+                  </div>
+                </section>
+              )}
             </div>
 
             {/* RIGHT: PURCHASE INFORMATION */}
@@ -1815,41 +1862,15 @@ export function ProductDetailPage() {
 
                       {/* Rating distribution breakdown bars */}
                       <div className="mb-rating-breakdown">
-                        <div className="mb-dist-row">
-                          <span>5 ★</span>
-                          <div className="mb-dist-bar-bg">
-                            <div className="mb-dist-bar-fill" style={{ width: '75%' }} />
+                        {ratingBreakdown.map(({ stars, pct }) => (
+                          <div key={stars} className="mb-dist-row">
+                            <span>{stars} ★</span>
+                            <div className="mb-dist-bar-bg">
+                              <div className="mb-dist-bar-fill" style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="mb-dist-pct">{pct}%</span>
                           </div>
-                          <span className="mb-dist-pct">75%</span>
-                        </div>
-                        <div className="mb-dist-row">
-                          <span>4 ★</span>
-                          <div className="mb-dist-bar-bg">
-                            <div className="mb-dist-bar-fill" style={{ width: '10%' }} />
-                          </div>
-                          <span className="mb-dist-pct">10%</span>
-                        </div>
-                        <div className="mb-dist-row">
-                          <span>3 ★</span>
-                          <div className="mb-dist-bar-bg">
-                            <div className="mb-dist-bar-fill" style={{ width: '6%' }} />
-                          </div>
-                          <span className="mb-dist-pct">6%</span>
-                        </div>
-                        <div className="mb-dist-row">
-                          <span>2 ★</span>
-                          <div className="mb-dist-bar-bg">
-                            <div className="mb-dist-bar-fill" style={{ width: '3%' }} />
-                          </div>
-                          <span className="mb-dist-pct">3%</span>
-                        </div>
-                        <div className="mb-dist-row">
-                          <span>1 ★</span>
-                          <div className="mb-dist-bar-bg">
-                            <div className="mb-dist-bar-fill" style={{ width: '1%' }} />
-                          </div>
-                          <span className="mb-dist-pct">1%</span>
-                        </div>
+                        ))}
                       </div>
 
                       <button

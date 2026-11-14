@@ -27,7 +27,7 @@ export default function App() {
       if (ref && ref.trim()) {
         localStorage.setItem('malkaz_referral_code', ref.trim().toUpperCase());
       }
-    } catch {}
+    } catch { }
   }, []);
 
   return (

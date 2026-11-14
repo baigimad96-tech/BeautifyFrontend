@@ -49,18 +49,6 @@ import { MalkazSidebar } from '@/components/layout/MalkazSidebar';
 import { getJewelleryImage as resolveJewelleryImage } from '@/lib/jewellery-images';
 import '@/styles/my-orders.css';
 
-// Product catalog image & metadata fallbacks for orders
-interface ProductMeta {
-  brand: string;
-  size?: string;
-  imageUrl: string;
-}
-
-const getProductMeta = (): ProductMeta => ({
-  brand: 'MALKAZ',
-  imageUrl: '/products/jewels/royal-emerald-necklace.jpg',
-});
-
 const getJewelleryImage = (imageUrl?: string | null, productName?: string, productId?: number) =>
   resolveJewelleryImage(imageUrl, productName, productId);
 
@@ -117,7 +105,7 @@ const addDaysToDate = (dateStr: string | undefined, days: number): string => {
 };
 
 export default function MyOrdersPage() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
 
   // Authentication & User State
   const [user, setUser] = useState<UserResponse | null>(null);
@@ -490,6 +478,16 @@ export default function MyOrdersPage() {
           </div>
 
           <div className="mb-orders-topbar-actions">
+            {/* Top Navbar "About Us" Link */}
+            <Link
+              href="/about"
+              className={`mb-header-nav-link ${location === '/about' || location === '/about-us' ? 'active' : ''}`}
+              title="About MALKAZ"
+              data-testid="orders-header-about-link"
+            >
+              About Us
+            </Link>
+
             {/* Wishlist Button */}
             <Link href="/wishlist" className="mb-orders-icon-btn" aria-label="Wishlist">
               <Heart size={20} />
@@ -717,7 +715,6 @@ export default function MyOrdersPage() {
                       {/* Items Row */}
                       <div className="mb-order-items-row">
                         {(order.items || []).map((item) => {
-                          const meta = getProductMeta();
                           const itemImg = getJewelleryImage(item.imageUrl, item.productName, item.productId);
 
                           return (
@@ -734,8 +731,7 @@ export default function MyOrdersPage() {
                                 <span className="mb-order-item-name">{item.productName}</span>
                                 {item.comboName
                                   ? <span className="mb-order-item-brand">{item.comboName}</span>
-                                  : <span className="mb-order-item-brand">{meta.brand}</span>}
-                                {meta.size && <span className="mb-order-item-size">{meta.size}</span>}
+                                  : <span className="mb-order-item-brand">MALKAZ</span>}
                                 <div className="mb-order-item-price-row">
                                   <span>Qty: {item.quantity}</span>
                                   <span className="mb-order-item-price-val">
@@ -942,7 +938,6 @@ export default function MyOrdersPage() {
                 <h4 style={{ margin: '0 0 10px 0', fontSize: 14, color: '#123A30' }}>Items in this order</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {(selectedOrderDetails.items || []).map((item) => {
-                    const meta = getProductMeta();
                     return (
                       <div
                         key={item.id}
@@ -965,7 +960,7 @@ export default function MyOrdersPage() {
                             {item.productName}
                           </p>
                           <p style={{ margin: '2px 0 0 0', fontSize: 11.5, color: '#5A6B64' }}>
-                            {meta.brand} • Qty: {item.quantity}
+                            MALKAZ • Qty: {item.quantity}
                           </p>
                         </div>
                         <div style={{ textAlign: 'right' }}>

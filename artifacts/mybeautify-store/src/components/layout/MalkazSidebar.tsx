@@ -7,6 +7,7 @@ import {
   Home,
   LogOut,
   Package,
+  Sparkles,
   Star,
   Tags,
   UserRound,
@@ -97,6 +98,7 @@ export function MalkazSidebar({
     { key: 'home', label: 'Home', icon: <Home size={18} />, href: '/' },
     { key: 'categories', label: 'Categories', icon: <Tags size={18} />, href: '/categories' },
     { key: 'combos', label: 'Combos & Offers', icon: <Gift size={18} />, href: '/combos' },
+    { key: 'about', label: 'About Us', icon: <Sparkles size={18} />, href: '/about' },
     { key: 'orders', label: 'My Orders', icon: <Package size={18} />, href: '/orders' },
     {
       key: 'reviews',
