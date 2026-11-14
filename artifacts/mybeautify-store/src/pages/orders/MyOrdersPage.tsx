@@ -44,7 +44,7 @@ import {
   type CartResponse,
   type ProductResponse,
 } from '@/lib/api';
-import { CustomerProfilePill, HeaderCartButton } from '@/components/common';
+import { CustomerProfilePill, HeaderCartButton, WhatsAppButton } from '@/components/common';
 import { MalkazSidebar } from '@/components/layout/MalkazSidebar';
 import { getJewelleryImage as resolveJewelleryImage } from '@/lib/jewellery-images';
 import '@/styles/my-orders.css';
@@ -487,6 +487,19 @@ export default function MyOrdersPage() {
             >
               About Us
             </Link>
+
+            {/* Top Navbar "Help & Support" Link */}
+            <Link
+              href="/help-support"
+              className={`mb-header-nav-link ${location === '/help-support' || location === '/support' ? 'active' : ''}`}
+              title="Help & Support"
+              data-testid="orders-header-help-link"
+            >
+              Help & Support
+            </Link>
+
+            {/* Top Navbar WhatsApp Concierge Button */}
+            <WhatsAppButton variant="header" />
 
             {/* Wishlist Button */}
             <Link href="/wishlist" className="mb-orders-icon-btn" aria-label="Wishlist">

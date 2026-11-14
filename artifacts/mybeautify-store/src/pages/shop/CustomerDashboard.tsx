@@ -80,6 +80,8 @@ import { extractArray } from '@/utils/array';
 import { animateTrashCan } from '@/lib/cart-animations';
 import { removeComboGroupFromCart } from '@/services/combos/combos.service';
 import { fetchActiveCoupons, type AdminCouponResponse } from '@/services/coupons/coupons.service';
+import { WhatsAppButton, WhatsAppIcon } from '@/components/common/WhatsAppButton';
+import { useSiteContent } from '@/hooks/use-site-content';
 import type { CartItemResponse } from '@/types/cart.types';
 
 // Currency formatting with Rupee symbol as per reference design
@@ -201,6 +203,8 @@ export default function CustomerDashboard() {
     if (authLoading || !user) return false;
     return hasAdminRole(user.role) || hasAdminRole(user);
   }, [authLoading, user]);
+
+  const { whatsAppUrl, businessPhone, whatsappNumber, supportEmail, supportHours } = useSiteContent();
 
   // Layout & UI States
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -1153,6 +1157,9 @@ export default function CustomerDashboard() {
             >
               About Us
             </Link>
+
+            {/* Top Navbar WhatsApp Concierge Button */}
+            <WhatsAppButton variant="header" />
 
             {/* Discreet Admin Dashboard Shortcut - Visible strictly ONLY for verified ADMIN */}
             {isVerifiedAdmin && (
@@ -2889,31 +2896,67 @@ export default function CustomerDashboard() {
 
             <div className="mb-modal-body">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div style={{ padding: 16, background: '#FCF6F4', borderRadius: 12 }}>
-                  <h4 style={{ margin: '0 0 6px', fontSize: 15, color: 'var(--mb-primary)' }}>
-                    MALKAZ Client Care
+                <div style={{ padding: 16, background: '#FAF8F3', borderRadius: 12, border: '1px solid #ECE3D4' }}>
+                  <h4 style={{ margin: '0 0 6px', fontSize: 16, color: '#063B2F', fontFamily: "'Cormorant Garamond', Georgia, serif", fontWeight: 700 }}>
+                    MALKAZ Client Care Concierge
                   </h4>
-                  <p style={{ margin: 0, fontSize: 13, color: 'var(--mb-text-muted)' }}>
-                    Our client care team can help with orders, jewellery care, sizing, and collection questions.
+                  <p style={{ margin: 0, fontSize: 13, color: '#55685F', lineHeight: 1.6 }}>
+                    Our dedicated concierge can assist with order inquiries, delivery status, sizing, and bespoke fine jewellery styling.
                   </p>
                 </div>
 
-                <div style={{ fontSize: 13.5, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div><strong>Client Care:</strong> MALKAZ</div>
-                  <div><strong>Phone:</strong> +91 98765 43210 (Mon–Fri, 9am–6pm IST)</div>
-                  <div><strong>Store:</strong> Fine Jewellery Collection</div>
+                <div style={{ fontSize: 13.5, display: 'flex', flexDirection: 'column', gap: 10, color: '#063B2F' }}>
+                  <div>
+                    <strong>Official Phone:</strong>{' '}
+                    <a href={`tel:${businessPhone.replace(/[^0-9+]/g, '')}`} style={{ color: '#063B2F', fontWeight: 600, textDecoration: 'underline' }}>
+                      {businessPhone}
+                    </a>
+                  </div>
+                  <div>
+                    <strong>WhatsApp Support:</strong> +{whatsappNumber}
+                  </div>
+                  <div>
+                    <strong>Official Email:</strong>{' '}
+                    <a href={`mailto:${supportEmail}`} style={{ color: '#063B2F', textDecoration: 'underline' }}>
+                      {supportEmail}
+                    </a>
+                  </div>
+                  <div>
+                    <strong>Hours:</strong> {supportHours}
+                  </div>
                 </div>
 
-                <button
-                  type="button"
+                <a
+                  href={whatsAppUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="mb-card-add-btn"
-                  onClick={() => {
-                    showToast('Support ticket initiated. Our team will contact you shortly.');
-                    setActiveModal(null);
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    background: '#128C7E',
+                    border: '1px solid #25D366',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    textDecoration: 'none',
+                    padding: '12px',
+                    borderRadius: 8,
                   }}
+                  onClick={() => setActiveModal(null)}
                 >
-                  Contact Support Specialist
-                </button>
+                  <WhatsAppIcon size={18} />
+                  <span>Chat with Concierge on WhatsApp</span>
+                </a>
+
+                <Link
+                  href="/help-support"
+                  onClick={() => setActiveModal(null)}
+                  style={{ textAlign: 'center', fontSize: 13, color: '#063B2F', fontWeight: 600, textDecoration: 'underline' }}
+                >
+                  Open Full Help &amp; Support Page &rarr;
+                </Link>
               </div>
             </div>
           </div>

@@ -1,0 +1,342 @@
+/* ==========================================================================
+   MALKAZ Royal Admin: Site Content & Pages Manager Stylesheet
+   ========================================================================== */
+
+.mz-content-admin {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.mz-content-header-banner {
+  background: linear-gradient(135deg, #0A3622 0%, #062818 100%);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 12px;
+  padding: 1.5rem 2rem;
+  color: #FFFFFF;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  box-shadow: 0 4px 20px rgba(10, 54, 34, 0.15);
+}
+
+.mz-content-header-copy h2 {
+  font-family: 'Cinzel', 'Playfair Display', serif;
+  font-size: 1.45rem;
+  color: #FFFFFF;
+  margin: 0 0 0.35rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.mz-content-header-copy h2 .mz-gold-mark {
+  color: #D4AF37;
+}
+
+.mz-content-header-copy p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #E2E8F0;
+  opacity: 0.9;
+}
+
+.mz-content-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+/* Secondary Subtabs Navigation */
+.mz-content-subtabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 2px solid #E2E8F0;
+  padding-bottom: 0.25rem;
+  overflow-x: auto;
+}
+
+.mz-content-subtab-btn {
+  background: none;
+  border: none;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #4A5568;
+  cursor: pointer;
+  border-radius: 8px 8px 0 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  position: relative;
+  white-space: nowrap;
+}
+
+.mz-content-subtab-btn:hover {
+  color: #0A3622;
+  background: rgba(10, 54, 34, 0.04);
+}
+
+.mz-content-subtab-btn.active {
+  color: #0A3622;
+  font-weight: 700;
+  background: #FFFFFF;
+  border-bottom: 3px solid #D4AF37;
+}
+
+.mz-content-subtab-btn.active svg {
+  color: #D4AF37;
+}
+
+/* Form Container & Section Panels */
+.mz-content-panel {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 1.75rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.mz-section-card {
+  background: #FAF8F3;
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.mz-section-card-title {
+  font-family: 'Cinzel', 'Playfair Display', serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0A3622;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mz-section-card-desc {
+  font-size: 0.85rem;
+  color: #64748B;
+  margin: -0.5rem 0 0.5rem 0;
+}
+
+/* Form Grid & Inputs */
+.mz-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem 1.25rem;
+}
+
+.mz-form-grid.two-cols {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (max-width: 768px) {
+  .mz-form-grid.two-cols {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mz-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.mz-form-field.full-width {
+  grid-column: 1 / -1;
+}
+
+.mz-form-field label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #2D3748;
+}
+
+.mz-form-field input,
+.mz-form-field textarea {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  font-size: 0.92rem;
+  color: #1A202C;
+  background: #FFFFFF;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.mz-form-field input:focus,
+.mz-form-field textarea:focus {
+  outline: none;
+  border-color: #0A3622;
+  box-shadow: 0 0 0 3px rgba(10, 54, 34, 0.12);
+}
+
+.mz-form-field small {
+  font-size: 0.78rem;
+  color: #718096;
+}
+
+/* Dynamic Repeating Items (FAQs, Policy Sections) */
+.mz-repeat-item {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  position: relative;
+}
+
+.mz-repeat-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mz-repeat-item-header span {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: #0A3622;
+}
+
+.mz-btn-remove {
+  background: none;
+  border: none;
+  color: #E53E3E;
+  cursor: pointer;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  transition: background 0.15s ease;
+}
+
+.mz-btn-remove:hover {
+  background: #FFF5F5;
+}
+
+.mz-btn-add {
+  align-self: flex-start;
+  background: #F7FAFC;
+  border: 1px dashed #CBD5E1;
+  color: #0A3622;
+  font-weight: 600;
+  font-size: 0.88rem;
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s ease;
+}
+
+.mz-btn-add:hover {
+  background: #EDF2F7;
+  border-color: #0A3622;
+}
+
+/* Sticky Action Bar */
+.mz-content-sticky-actions {
+  position: sticky;
+  bottom: 1rem;
+  background: #FFFFFF;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  z-index: 50;
+  margin-top: 1rem;
+}
+
+.mz-preview-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.65rem 1.15rem;
+  background: #F7FAFC;
+  border: 1px solid #CBD5E1;
+  color: #2D3748;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.mz-preview-link-btn:hover {
+  background: #EDF2F7;
+  border-color: #A0AEC0;
+  color: #1A202C;
+}
+
+.mz-btn-save-publish {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.75rem;
+  background: #0A3622;
+  border: 1px solid #D4AF37;
+  color: #FFFFFF;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(10, 54, 34, 0.25);
+  transition: all 0.2s ease;
+}
+
+.mz-btn-save-publish:hover:not(:disabled) {
+  background: #062818;
+  box-shadow: 0 4px 14px rgba(10, 54, 34, 0.35);
+  transform: translateY(-1px);
+}
+
+.mz-btn-save-publish:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Feedback Alert Banners */
+.mz-content-feedback-banner {
+  padding: 0.85rem 1.25rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.mz-content-feedback-banner.success {
+  background: #F0FDF4;
+  border: 1px solid #86EFAC;
+  color: #166534;
+}
+
+.mz-content-feedback-banner.error {
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #991B1B;
+}

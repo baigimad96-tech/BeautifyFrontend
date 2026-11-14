@@ -1,6 +1,7 @@
 import { Link } from 'wouter';
 import { ArrowLeft } from 'lucide-react';
 import { SiteLayout } from '@/layouts/SiteLayout';
+import { useSiteContent } from '@/hooks/use-site-content';
 import './privacy-conditions.css';
 
 const privacySections = [
@@ -60,6 +61,18 @@ const termsSections = [
 ];
 
 export default function PrivacyConditionsPage() {
+  const { privacyPolicy } = useSiteContent();
+
+  const activePrivacySections =
+    privacyPolicy.sections && privacyPolicy.sections.length > 0
+      ? privacyPolicy.sections
+      : privacySections;
+
+  const activeTermsSections =
+    privacyPolicy.termsSections && privacyPolicy.termsSections.length > 0
+      ? privacyPolicy.termsSections
+      : termsSections;
+
   return (
     <SiteLayout>
       <main className="page legal-page">
@@ -70,18 +83,23 @@ export default function PrivacyConditionsPage() {
 
         <header className="legal-page-heading">
           <p className="eyebrow">MALKAZ / CUSTOMER INFORMATION</p>
-          <h1 className="page-title">Privacy &amp; Conditions</h1>
+          <h1 className="page-title">{privacyPolicy.title || 'Privacy & Conditions'}</h1>
           <p>
-            Find out how information is used on this website and the conditions
-            that apply when you browse or place an order.
+            {privacyPolicy.intro ||
+              'Find out how information is used on this website and the conditions that apply when you browse or place an order.'}
           </p>
+          {privacyPolicy.lastUpdated && (
+            <p style={{ fontSize: '0.82rem', color: '#666', marginTop: '0.5rem' }}>
+              Last updated: {privacyPolicy.lastUpdated}
+            </p>
+          )}
         </header>
 
         <div className="legal-sections">
           <section aria-labelledby="privacy-title">
             <p className="eyebrow">YOUR INFORMATION</p>
             <h2 id="privacy-title">Privacy</h2>
-            {privacySections.map((section) => (
+            {activePrivacySections.map((section: { title: string; content: string }) => (
               <article className="legal-copy-block" key={section.title}>
                 <h3>{section.title}</h3>
                 <p>{section.content}</p>
@@ -92,7 +110,7 @@ export default function PrivacyConditionsPage() {
           <section aria-labelledby="conditions-title">
             <p className="eyebrow">BROWSING &amp; ORDERS</p>
             <h2 id="conditions-title">Website conditions</h2>
-            {termsSections.map((section) => (
+            {activeTermsSections.map((section: { title: string; content: string }) => (
               <article className="legal-copy-block" key={section.title}>
                 <h3>{section.title}</h3>
                 <p>{section.content}</p>

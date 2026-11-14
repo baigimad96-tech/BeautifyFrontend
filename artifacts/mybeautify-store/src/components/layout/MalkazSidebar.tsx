@@ -111,8 +111,7 @@ export function MalkazSidebar({
       key: 'support',
       label: 'Help & Support',
       icon: <Headphones size={18} />,
-      href: '/account?panel=support',
-      action: 'support',
+      href: '/help-support',
     },
   ];
 

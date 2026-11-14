@@ -1175,4 +1175,270 @@
   margin-bottom: 6px;
 }
 
+/* ==========================================================================
+   MULTI-IMAGE GALLERY MANAGEMENT STYLING
+   ========================================================================== */
+.admin-gallery-card {
+  margin: 18px 0 24px 0;
+  padding: 22px;
+  background: #fbf9f4;
+  border: 1px solid #e5dcce;
+  border-radius: 14px;
+}
+
+.admin-gallery-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #ebd9c2;
+}
+
+.admin-gallery-title {
+  margin: 0;
+  color: #063b2f;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 20px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-gallery-subtitle {
+  margin: 4px 0 0 0;
+  color: #65756c;
+  font-size: 12px;
+}
+
+.admin-gallery-count-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(6, 59, 47, 0.08);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  color: #063b2f;
+  font-size: 11.5px;
+  font-weight: 700;
+  margin-left: 6px;
+}
+
+.admin-gallery-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.admin-gallery-upload-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 24px;
+  border: 2px dashed #d4af63;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.admin-gallery-upload-zone:hover {
+  background: #ffffff;
+  border-color: #063b2f;
+  box-shadow: 0 4px 12px rgba(6, 59, 47, 0.06);
+}
+
+.admin-gallery-upload-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(212, 175, 55, 0.15);
+  color: #063b2f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-gallery-upload-text {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #063b2f;
+}
+
+.admin-gallery-upload-hint {
+  font-size: 11.5px;
+  color: #7b8c82;
+}
+
+.admin-gallery-url-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.admin-gallery-url-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #dcd3c3;
+  border-radius: 8px;
+  font-size: 12.5px;
+  background: #ffffff;
+}
+
+.admin-gallery-url-btn {
+  padding: 8px 14px;
+  background: #063b2f;
+  color: #e8cf7a;
+  border: 1px solid #d4af63;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.admin-gallery-url-btn:hover {
+  background: #d4af63;
+  color: #062818;
+}
+
+.admin-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.admin-gallery-item {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #e0d7c7;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-gallery-item.is-cover {
+  border: 2px solid #d4af63;
+  box-shadow: 0 4px 14px rgba(212, 175, 55, 0.25);
+}
+
+.admin-gallery-thumb-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  background: #f7f5f0;
+  overflow: hidden;
+}
+
+.admin-gallery-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.admin-gallery-badge-cover {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: linear-gradient(135deg, #063b2f 0%, #0a4f3e 100%);
+  border: 1px solid #d4af63;
+  color: #e8cf7a;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.admin-gallery-badge-order {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+.admin-gallery-item-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  background: #fdfcf9;
+  border-top: 1px solid #ede5d8;
+  gap: 4px;
+}
+
+.admin-gallery-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid #dcd3c3;
+  background: #ffffff;
+  color: #063b2f;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.admin-gallery-action-btn:hover:not(:disabled) {
+  background: #063b2f;
+  color: #e8cf7a;
+  border-color: #063b2f;
+}
+
+.admin-gallery-action-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.admin-gallery-action-btn.delete:hover {
+  background: #a92222;
+  color: #ffffff;
+  border-color: #a92222;
+}
+
+.admin-gallery-primary-btn {
+  flex: 1;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 5px 6px;
+  background: #f4ecdc;
+  color: #063b2f;
+  border: 1px solid #d4af63;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.admin-gallery-primary-btn:hover {
+  background: #063b2f;
+  color: #e8cf7a;
+}
+
+
 

@@ -50,6 +50,7 @@ export interface ProductResponse {
   subcategoryId?: number;
   subcategoryName?: string;
   imageUrl?: string;
+  images?: string[];
   active: boolean;
   featured?: boolean;
   ingredients?: string;

@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import { MalkazSidebar } from '@/components/layout/MalkazSidebar';
+import { WhatsAppButton } from '@/components/common';
 import { getAuthToken } from '@/services/api/client';
 import {
   addCustomComboToCart,
@@ -246,10 +247,14 @@ export default function CombosOffersPage() {
             <Link href="/shop">Shop</Link>
             <Link href="/combos" aria-current="page">Combos &amp; Offers</Link>
             <Link href="/about">About Us</Link>
+            <Link href="/help-support">Help &amp; Support</Link>
           </nav>
-          <Link href="/cart" className="combos-cart-link">
-            <ShoppingCart size={18} /> Cart
-          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <WhatsAppButton variant="header" />
+            <Link href="/cart" className="combos-cart-link">
+              <ShoppingCart size={18} /> Cart
+            </Link>
+          </div>
         </header>
 
         <main className="mb-page-body combos-page">

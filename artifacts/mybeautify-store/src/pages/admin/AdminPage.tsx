@@ -2,10 +2,10 @@ import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { customFetch } from '@workspace/api-client-react/custom-fetch';
-import { ArrowRight, Gem, Layers, Layers3, MessageSquare, Package, Pencil, Plus, ShoppingBag, Sparkles, Tag, TrendingDown, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Gem, Image as ImageIcon, Layers, Layers3, MessageSquare, Package, Pencil, Plus, ShoppingBag, Sparkles, Star, Tag, TrendingDown, Trash2, Upload } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { getJewelleryImage } from '@/lib/jewellery-images';
-import { uploadImage } from '@/services/uploads/uploads.service';
+import { uploadImage, uploadMultipleImages } from '@/services/uploads/uploads.service';
 import { fetchAdminDashboard } from '@/services/admin/dashboard.service';
 import { fetchAdminSubcategories } from '@/services/subcategories/subcategories.service';
 import {
@@ -23,6 +23,7 @@ import { AdminOrdersView } from './AdminOrdersView';
 import { CouponsAdminView } from './CouponsAdminView';
 import { ReviewsAdminView } from './ReviewsAdminView';
 import { HeroBannersAdminView } from './HeroBannersAdminView';
+import { SiteContentAdminView } from './SiteContentAdminView';
 import { normalizeList } from '@/utils/array';
 import type { SubcategoryResponse } from '@/types/subcategory.types';
 import '@/styles/admin.css';
@@ -38,13 +39,22 @@ type AdminProduct = {
   stockQuantity: number;
   lowStockThreshold: number;
   categoryId: number;
+  subcategoryId?: number | null;
   description: string;
   shortDescription?: string;
   imageUrl?: string;
+  images?: string[];
   active: boolean;
   featured: boolean;
   size?: string;
   attributes?: Record<string, string>;
+};
+
+type GalleryItem = {
+  id: string;
+  url: string;
+  file?: File;
+  isNew: boolean;
 };
 
 type AdminCategory = {
@@ -173,7 +183,10 @@ function CrudPanel<T extends { id: number }>({
   const [attributes, setAttributes] = useState<Record<string, string>>({});
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
+  const [newUrlInput, setNewUrlInput] = useState('');
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const multiImageInputRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
@@ -201,6 +214,83 @@ function CrudPanel<T extends { id: number }>({
     setValues((current) => ({ ...current, description: generated }));
   };
 
+  const handleAddFiles = (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    const newItems: GalleryItem[] = [];
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i];
+      if (!ACCEPTED_IMAGE_TYPES.has(file.type)) {
+        setError(`"${file.name}" is not a supported format. Choose JPEG, PNG, or WebP.`);
+        continue;
+      }
+      if (file.size > MAX_IMAGE_SIZE_BYTES) {
+        setError(`"${file.name}" exceeds the 5 MB file size limit.`);
+        continue;
+      }
+      newItems.push({
+        id: `new-${Date.now()}-${i}-${Math.random().toString(36).substring(2, 7)}`,
+        url: URL.createObjectURL(file),
+        file,
+        isNew: true,
+      });
+    }
+    if (newItems.length > 0) {
+      setGalleryItems((prev) => [...prev, ...newItems]);
+      setError('');
+    }
+  };
+
+  const handleAddUrl = () => {
+    const trimmed = newUrlInput.trim();
+    if (!trimmed) return;
+    if (!/^https?:\/\//i.test(trimmed) && !trimmed.startsWith('/')) {
+      setError('Please enter a valid image URL starting with http://, https:// or /');
+      return;
+    }
+    setGalleryItems((prev) => [
+      ...prev,
+      {
+        id: `url-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        url: trimmed,
+        isNew: false,
+      },
+    ]);
+    setNewUrlInput('');
+    setError('');
+  };
+
+  const handleSetPrimary = (index: number) => {
+    if (index === 0) return;
+    setGalleryItems((prev) => {
+      const copy = [...prev];
+      const [selected] = copy.splice(index, 1);
+      return [selected, ...copy];
+    });
+  };
+
+  const handleMoveItem = (index: number, direction: 'left' | 'right') => {
+    const targetIndex = direction === 'left' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= galleryItems.length) return;
+    setGalleryItems((prev) => {
+      const copy = [...prev];
+      const [selected] = copy.splice(index, 1);
+      copy.splice(targetIndex, 0, selected);
+      return copy;
+    });
+  };
+
+  const handleRemoveItem = (index: number) => {
+    setGalleryItems((prev) => {
+      const item = prev[index];
+      if (item && item.isNew && item.url.startsWith('blob:')) {
+        try {
+          URL.revokeObjectURL(item.url);
+        } catch {}
+      }
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
   useEffect(() => {
     if (!imageFile) {
       setImagePreviewUrl(null);
@@ -213,12 +303,49 @@ function CrudPanel<T extends { id: number }>({
   }, [imageFile]);
 
   const mutation = useMutation({
-    mutationFn: async (request: { method: 'POST' | 'PUT' | 'DELETE'; id?: number; payload?: Record<string, unknown>; imageFile?: File }) => {
+    mutationFn: async (request: {
+      method: 'POST' | 'PUT' | 'DELETE';
+      id?: number;
+      payload?: Record<string, unknown>;
+      imageFile?: File;
+      galleryItemsToUpload?: GalleryItem[];
+    }) => {
       const url = request.id === undefined ? endpoint : `${endpoint}/${request.id}`;
       const payload = { ...request.payload };
-      if (request.imageFile) {
+
+      if (title === 'Product' && request.galleryItemsToUpload) {
+        const items = request.galleryItemsToUpload;
+        const newItems = items.filter((item) => item.isNew && item.file);
+
+        // Upload new files (using batch endpoint with parallel fallback)
+        const uploadedMap = new Map<string, string>();
+        if (newItems.length > 0) {
+          const filesToUpload = newItems.map((item) => item.file!);
+          const uploadedUrls = await uploadMultipleImages(filesToUpload);
+          newItems.forEach((item, idx) => {
+            if (uploadedUrls[idx]) {
+              uploadedMap.set(item.id, uploadedUrls[idx]);
+            }
+          });
+        }
+
+        // Assemble final ordered URLs list
+        const finalImages: string[] = [];
+        for (const item of items) {
+          if (item.isNew) {
+            const uploaded = uploadedMap.get(item.id);
+            if (uploaded) finalImages.push(uploaded);
+          } else if (item.url && !item.url.startsWith('blob:')) {
+            finalImages.push(item.url);
+          }
+        }
+
+        payload.images = finalImages;
+        payload.imageUrl = finalImages.length > 0 ? finalImages[0] : null;
+      } else if (request.imageFile) {
         payload.imageUrl = await uploadImage(request.imageFile);
       }
+
       return customFetch<unknown>(url, {
         method: request.method,
         ...(request.payload ? { body: JSON.stringify(payload) } : {}),
@@ -230,7 +357,10 @@ function CrudPanel<T extends { id: number }>({
       setValues({});
       setAttributes({});
       setImageFile(null);
+      setGalleryItems([]);
+      setNewUrlInput('');
       if (imageInputRef.current) imageInputRef.current.value = '';
+      if (multiImageInputRef.current) multiImageInputRef.current.value = '';
       setError('');
       setMessage(request.method === 'DELETE' ? 'Record deleted.' : request.method === 'POST' ? 'Record added.' : 'Changes saved.');
     },
@@ -245,7 +375,10 @@ function CrudPanel<T extends { id: number }>({
     setValues(Object.fromEntries(fields.map((field) => [field.key, field.defaultValue ?? (field.type === 'checkbox' ? false : '')])));
     setAttributes({});
     setImageFile(null);
+    setGalleryItems([]);
+    setNewUrlInput('');
     if (imageInputRef.current) imageInputRef.current.value = '';
+    if (multiImageInputRef.current) multiImageInputRef.current.value = '';
     setMessage('');
     setError('');
   };
@@ -255,7 +388,33 @@ function CrudPanel<T extends { id: number }>({
     const itemAttributes = (item as any)?.attributes;
     setAttributes(itemAttributes && typeof itemAttributes === 'object' ? { ...itemAttributes } : {});
     setImageFile(null);
+    if (title === 'Product') {
+      const p = item as any;
+      const initial: GalleryItem[] = [];
+      if (Array.isArray(p.images) && p.images.length > 0) {
+        p.images.forEach((img: unknown, idx: number) => {
+          if (typeof img === 'string' && img.trim()) {
+            initial.push({
+              id: `saved-${idx}-${img.trim()}`,
+              url: img.trim(),
+              isNew: false,
+            });
+          }
+        });
+      } else if (p.imageUrl && typeof p.imageUrl === 'string' && p.imageUrl.trim()) {
+        initial.push({
+          id: `saved-0-${p.imageUrl.trim()}`,
+          url: p.imageUrl.trim(),
+          isNew: false,
+        });
+      }
+      setGalleryItems(initial);
+    } else {
+      setGalleryItems([]);
+    }
+    setNewUrlInput('');
     if (imageInputRef.current) imageInputRef.current.value = '';
+    if (multiImageInputRef.current) multiImageInputRef.current.value = '';
     setMessage('');
     setError('');
   };
@@ -265,21 +424,6 @@ function CrudPanel<T extends { id: number }>({
     setError('');
     try {
       const payload = makePayload(values, fields);
-      if (title === 'Product') {
-        const cleanAttributes: Record<string, string> = {};
-        for (const [k, v] of Object.entries(attributes)) {
-          if (v && typeof v === 'string' && v.trim().length > 0) {
-            cleanAttributes[k] = v.trim();
-          }
-        }
-        payload.attributes = cleanAttributes;
-      }
-      if (imageFile && !ACCEPTED_IMAGE_TYPES.has(imageFile.type)) {
-        throw new Error('Choose a JPEG, PNG, or WebP image.');
-      }
-      if (imageFile && imageFile.size > MAX_IMAGE_SIZE_BYTES) {
-        throw new Error('Image files must be 5 MB or smaller.');
-      }
       const hiddenProductFields = ['ingredients', 'benefits', 'howToUse', 'skinType', 'shade', 'size', 'expiryDate'];
       for (const [key, value] of Object.entries(editing ?? {})) {
         if (hiddenProductFields.includes(key)) {
@@ -288,6 +432,32 @@ function CrudPanel<T extends { id: number }>({
             : value;
         }
       }
+
+      if (title === 'Product') {
+        const cleanAttributes: Record<string, string> = {};
+        for (const [k, v] of Object.entries(attributes)) {
+          if (v && typeof v === 'string' && v.trim().length > 0) {
+            cleanAttributes[k] = v.trim();
+          }
+        }
+        payload.attributes = cleanAttributes;
+
+        mutation.mutate({
+          method: editing ? 'PUT' : 'POST',
+          id: editing?.id,
+          payload,
+          galleryItemsToUpload: galleryItems,
+        });
+        return;
+      }
+
+      if (imageFile && !ACCEPTED_IMAGE_TYPES.has(imageFile.type)) {
+        throw new Error('Choose a JPEG, PNG, or WebP image.');
+      }
+      if (imageFile && imageFile.size > MAX_IMAGE_SIZE_BYTES) {
+        throw new Error('Image files must be 5 MB or smaller.');
+      }
+
       mutation.mutate({ method: editing ? 'PUT' : 'POST', id: editing?.id, payload, imageFile: imageFile ?? undefined });
     } catch (submitError) {
       setError(getMessage(submitError));
@@ -441,73 +611,230 @@ function CrudPanel<T extends { id: number }>({
                 </div>
               )}
 
-              <label className={`form-field ${field.type === 'checkbox' ? 'admin-checkbox-field' : ''}`}>
-                {field.type === 'checkbox'
-                  ? <><input type="checkbox" checked={values[field.key] === true} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.checked }))} />{field.label}</>
-                  : field.type === 'file'
-                    ? <><span>{field.label}</span>
+              {field.type === 'file' && isProduct ? (
+                <div className="admin-gallery-card" style={{ gridColumn: '1 / -1' }}>
+                  <div className="admin-gallery-header">
+                    <div>
+                      <h4 className="admin-gallery-title">
+                        <ImageIcon size={18} /> Product Images Gallery
+                        {galleryItems.length > 0 && (
+                          <span className="admin-gallery-count-badge">
+                            {galleryItems.length} {galleryItems.length === 1 ? 'image' : 'images'}
+                          </span>
+                        )}
+                      </h4>
+                      <p className="admin-gallery-subtitle">
+                        Upload multiple photos, reorder thumbnails, and select which image serves as the primary cover photo for storefront cards and search.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="admin-gallery-controls">
+                    {/* Hidden Multiple File Input */}
+                    <input
+                      ref={multiImageInputRef}
+                      type="file"
+                      multiple
+                      accept={field.accept}
+                      style={{ display: 'none' }}
+                      disabled={mutation.isPending}
+                      onChange={(e) => {
+                        handleAddFiles(e.target.files);
+                        e.target.value = '';
+                      }}
+                    />
+
+                    {/* Drop / Click Area */}
+                    <div
+                      className="admin-gallery-upload-zone"
+                      onClick={() => multiImageInputRef.current?.click()}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          multiImageInputRef.current?.click();
+                        }
+                      }}
+                    >
+                      <div className="admin-gallery-upload-icon">
+                        <Upload size={20} />
+                      </div>
+                      <span className="admin-gallery-upload-text">
+                        Click or drag to upload product photos (Select multiple at once)
+                      </span>
+                      <span className="admin-gallery-upload-hint">
+                        Supports JPEG, PNG, and WebP (up to 5 MB per file). Newly selected images will append to the gallery.
+                      </span>
+                    </div>
+
+                    {/* Optional Direct URL Addition */}
+                    <div className="admin-gallery-url-row">
                       <input
-                        ref={imageInputRef}
-                        className="input"
-                        type="file"
-                        accept={field.accept}
-                        disabled={mutation.isPending}
-                        onChange={(event) => {
-                          const file = event.currentTarget.files?.[0] ?? null;
-                          if (!file) return;
-                          if (!ACCEPTED_IMAGE_TYPES.has(file.type)) {
-                            setImageFile(null);
-                            setError('Choose a JPEG, PNG, or WebP image.');
-                            event.currentTarget.value = '';
-                            return;
+                        type="url"
+                        className="admin-gallery-url-input"
+                        placeholder="Or enter an external image URL (e.g. https://...)"
+                        value={newUrlInput}
+                        onChange={(e) => setNewUrlInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddUrl();
                           }
-                          if (file.size > MAX_IMAGE_SIZE_BYTES) {
-                            setImageFile(null);
-                            setError('Image files must be 5 MB or smaller.');
-                            event.currentTarget.value = '';
-                            return;
-                          }
-                          setImageFile(file);
-                          setError('');
-                          setMessage('');
                         }}
                       />
-                      {field.hint && <small className="admin-image-hint">{field.hint}</small>}
-                      {(imagePreviewUrl || (typeof values.imageUrl === 'string' && values.imageUrl)) && (
-                        <img
-                          className="admin-image-preview"
-                          src={imagePreviewUrl ?? String(values.imageUrl)}
-                          alt={imageFile ? `Preview of ${imageFile.name}` : 'Current image'}
-                        />
-                      )}
-                    </>
-                  : <>
-                    {isProduct && isDescription ? (
-                      <div className="admin-desc-header-row">
-                        <span>{field.label}</span>
-                        <button
-                          type="button"
-                          className="generate-template-btn"
-                          style={{ padding: '3px 10px', fontSize: '11px' }}
-                          onClick={handleGenerateDescription}
-                          title="Auto-fill description from attributes"
+                      <button
+                        type="button"
+                        className="admin-gallery-url-btn"
+                        onClick={handleAddUrl}
+                      >
+                        <Plus size={14} /> Add URL
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Gallery Grid */}
+                  {galleryItems.length > 0 ? (
+                    <div className="admin-gallery-grid">
+                      {galleryItems.map((item, idx) => (
+                        <div
+                          key={item.id}
+                          className={`admin-gallery-item ${idx === 0 ? 'is-cover' : ''}`}
                         >
-                          <Sparkles size={12} /> ✨ Generate Description
-                        </button>
-                      </div>
-                    ) : (
-                      <span>{field.label}</span>
-                    )}
-                    {field.type === 'textarea'
-                      ? <textarea className="input" rows={isDescription ? 7 : 3} required={field.required} value={String(values[field.key] ?? '')} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))} />
-                      : field.type === 'select'
-                        ? <select className="select" required={field.required} value={String(values[field.key] ?? '')} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))}>
-                          <option value="">Select {field.label.toLowerCase()}</option>
-                          {(field.options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                        </select>
-                        : <input className="input" type={field.type === 'list' ? 'text' : field.type} min={field.min} step={field.step} required={field.required} value={String(values[field.key] ?? '')} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))} />}
-                  </>}
-              </label>
+                          <div className="admin-gallery-thumb-wrap">
+                            <img
+                              src={item.url}
+                              alt={`Product image ${idx + 1}`}
+                              className="admin-gallery-thumb"
+                              onError={(e) => {
+                                e.currentTarget.src = getJewelleryImage(null, 'Product', idx);
+                              }}
+                            />
+                            {idx === 0 ? (
+                              <span className="admin-gallery-badge-cover">
+                                <Star size={11} fill="#e8cf7a" /> Cover
+                              </span>
+                            ) : (
+                              <span className="admin-gallery-badge-order">#{idx + 1}</span>
+                            )}
+                          </div>
+
+                          <div className="admin-gallery-item-actions">
+                            {idx > 0 && (
+                              <button
+                                type="button"
+                                className="admin-gallery-primary-btn"
+                                onClick={() => handleSetPrimary(idx)}
+                                title="Make this photo the primary cover image"
+                              >
+                                Set Cover
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="admin-gallery-action-btn"
+                              disabled={idx === 0}
+                              onClick={() => handleMoveItem(idx, 'left')}
+                              title="Move Left"
+                            >
+                              <ArrowLeft size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              className="admin-gallery-action-btn"
+                              disabled={idx === galleryItems.length - 1}
+                              onClick={() => handleMoveItem(idx, 'right')}
+                              title="Move Right"
+                            >
+                              <ArrowRight size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              className="admin-gallery-action-btn delete"
+                              onClick={() => handleRemoveItem(idx)}
+                              title="Remove photo"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '16px', color: '#7b8c82', fontSize: '13px' }}>
+                      No photos added yet. Upload files above to showcase multiple angles of this jewellery piece.
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <label className={`form-field ${field.type === 'checkbox' ? 'admin-checkbox-field' : ''}`}>
+                  {field.type === 'checkbox'
+                    ? <><input type="checkbox" checked={values[field.key] === true} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.checked }))} />{field.label}</>
+                    : field.type === 'file'
+                      ? <><span>{field.label}</span>
+                        <input
+                          ref={imageInputRef}
+                          className="input"
+                          type="file"
+                          accept={field.accept}
+                          disabled={mutation.isPending}
+                          onChange={(event) => {
+                            const file = event.currentTarget.files?.[0] ?? null;
+                            if (!file) return;
+                            if (!ACCEPTED_IMAGE_TYPES.has(file.type)) {
+                              setImageFile(null);
+                              setError('Choose a JPEG, PNG, or WebP image.');
+                              event.currentTarget.value = '';
+                              return;
+                            }
+                            if (file.size > MAX_IMAGE_SIZE_BYTES) {
+                              setImageFile(null);
+                              setError('Image files must be 5 MB or smaller.');
+                              event.currentTarget.value = '';
+                              return;
+                            }
+                            setImageFile(file);
+                            setError('');
+                            setMessage('');
+                          }}
+                        />
+                        {field.hint && <small className="admin-image-hint">{field.hint}</small>}
+                        {(imagePreviewUrl || (typeof values.imageUrl === 'string' && values.imageUrl)) && (
+                          <img
+                            className="admin-image-preview"
+                            src={imagePreviewUrl ?? String(values.imageUrl)}
+                            alt={imageFile ? `Preview of ${imageFile.name}` : 'Current image'}
+                          />
+                        )}
+                      </>
+                    : <>
+                      {isProduct && isDescription ? (
+                        <div className="admin-desc-header-row">
+                          <span>{field.label}</span>
+                          <button
+                            type="button"
+                            className="generate-template-btn"
+                            style={{ padding: '3px 10px', fontSize: '11px' }}
+                            onClick={handleGenerateDescription}
+                            title="Auto-fill description from attributes"
+                          >
+                            <Sparkles size={12} /> ✨ Generate Description
+                          </button>
+                        </div>
+                      ) : (
+                        <span>{field.label}</span>
+                      )}
+                      {field.type === 'textarea'
+                        ? <textarea className="input" rows={isDescription ? 7 : 3} required={field.required} value={String(values[field.key] ?? '')} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))} />
+                        : field.type === 'select'
+                          ? <select className="select" required={field.required} value={String(values[field.key] ?? '')} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))}>
+                            <option value="">Select {field.label.toLowerCase()}</option>
+                            {(field.options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                          </select>
+                          : <input className="input" type={field.type === 'list' ? 'text' : field.type} min={field.min} step={field.step} required={field.required} value={String(values[field.key] ?? '')} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))} />}
+                    </>}
+                </label>
+              )}
             </div>
           );
         })}
@@ -538,7 +865,7 @@ function CrudPanel<T extends { id: number }>({
 }
 
 function AdminConsole() {
-  const [section, setSection] = useState<'products' | 'categories' | 'banners' | 'orders' | 'coupons' | 'reviews' | 'relationships' | 'combos' | 'audit' | 'developer'>('products');
+  const [section, setSection] = useState<'products' | 'categories' | 'banners' | 'orders' | 'coupons' | 'reviews' | 'relationships' | 'combos' | 'content' | 'audit' | 'developer'>('products');
   const [page, setPage] = useState(0);
 
   const dashboardQuery = useQuery({
@@ -581,7 +908,7 @@ function AdminConsole() {
     { key: 'subcategoryId', label: 'Subcategory (Optional)', type: 'select', options: [{ value: '', label: 'None (Parent category only)' }, ...allSubcategoriesList.map((sub) => ({ value: String(sub.id), label: `${sub.name} (${sub.categoryName || 'Category #' + sub.categoryId})` }))] },
     { key: 'shortDescription', label: 'Short description', type: 'textarea' },
     { key: 'description', label: 'Description', type: 'textarea', required: true },
-    { key: 'imageFile', label: 'Upload image', type: 'file', accept: 'image/jpeg,image/png,image/webp', hint: 'JPEG, PNG, or WebP. Maximum file size: 5 MB. A selected file replaces the current image.' },
+    { key: 'imageFile', label: 'Product images', type: 'file', accept: 'image/jpeg,image/png,image/webp', hint: 'Upload one or multiple photos (JPEG, PNG, WebP). The first photo will be the primary storefront cover.' },
     { key: 'featured', label: 'Featured', type: 'checkbox' },
     { key: 'active', label: 'Active', type: 'checkbox', defaultValue: true },
   ], [categoriesList, allSubcategoriesList]);
@@ -637,6 +964,7 @@ function AdminConsole() {
           { id: 'reviews', label: 'Reviews' },
           { id: 'relationships', label: 'Similar products' },
           { id: 'combos', label: 'Combos & Offers' },
+          { id: 'content', label: 'Pages & Support' },
           { id: 'audit', label: 'Audit Logs' },
           { id: 'developer', label: 'Developer' },
         ] as const
@@ -663,7 +991,7 @@ function AdminConsole() {
         : section === 'products' && productsQuery.data
           ? <>
             <CrudPanel title="Product" endpoint="/api/admin/products" queryKey={['admin-products']} items={productsList} fields={productFields} categories={categoriesList} columns={[
-              { label: 'Piece', render: (item) => <div className="admin-product-cell"><img className="admin-product-thumb" src={getJewelleryImage(item.imageUrl, item.name, item.id)} alt="" loading="lazy" onError={(event) => { event.currentTarget.src = getJewelleryImage(null, item.name, item.id); }} /><span>{item.name}</span></div> },
+              { label: 'Piece', render: (item) => <div className="admin-product-cell"><img className="admin-product-thumb" src={getJewelleryImage(item.imageUrl, item.name, item.id)} alt="" loading="lazy" onError={(event) => { event.currentTarget.src = getJewelleryImage(null, item.name, item.id); }} /><div><span style={{ display: 'block', fontWeight: 600 }}>{item.name}</span>{Array.isArray(item.images) && item.images.length > 1 && <span className="admin-gallery-count-badge">{item.images.length} photos</span>}</div></div> },
               { label: 'SKU', render: (item) => item.sku },
               { label: 'Price', render: (item) => `₹${Number(item.discountPrice ?? item.price).toLocaleString('en-IN', { maximumFractionDigits: 2 })}` },
               { label: 'Stock', render: (item) => String(item.stockQuantity) },
@@ -693,7 +1021,9 @@ function AdminConsole() {
                             ? <CombosOffersAdminView />
                             : section === 'relationships'
                               ? <ProductRelationshipsAdminView />
-                              : null}
+                              : section === 'content'
+                                ? <SiteContentAdminView />
+                                : null}
     <p className="admin-back"><Link href="/account">Back to account</Link></p>
   </main>;
 }

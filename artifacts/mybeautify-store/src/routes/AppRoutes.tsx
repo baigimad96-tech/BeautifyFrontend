@@ -12,6 +12,7 @@ import CheckoutPage from '@/pages/checkout/CheckoutPage';
 import ShareReferralPage from '@/pages/referral/ShareReferralPage';
 import PrivacyConditionsPage from '@/pages/legal/PrivacyConditionsPage';
 import AboutUsPage from '@/pages/legal/AboutUsPage';
+import HelpSupportPage from '@/pages/help/HelpSupportPage';
 import NotFoundPage from '@/pages/not-found/NotFoundPage';
 
 export function AppRoutes() {
@@ -33,6 +34,8 @@ export function AppRoutes() {
         <Route path="/terms" component={PrivacyConditionsPage} />
         <Route path="/about" component={AboutUsPage} />
         <Route path="/about-us" component={AboutUsPage} />
+        <Route path="/help-support" component={HelpSupportPage} />
+        <Route path="/support" component={HelpSupportPage} />
         <Route path="/checkout" component={CheckoutPage} />
         <Route path="/products/:productId" component={ProductDetailPage} />
         <Route path="/products/:id" component={ProductDetailPage} />
